@@ -5,11 +5,17 @@ export interface ClaudeMessage {
   content: string | ClaudeContent[];
 }
 
+export interface ThinkingContent {
+  type: 'thinking';
+  thinking: string;
+}
+
 export type ClaudeContent =
   | TextContent
   | ImageContent
   | ToolUseContent
-  | ToolResultContent;
+  | ToolResultContent
+  | ThinkingContent;
 
 export interface TextContent {
   type: 'text';

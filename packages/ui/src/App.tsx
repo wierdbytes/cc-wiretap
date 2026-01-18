@@ -4,8 +4,9 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { RequestList } from '@/components/requests/RequestList';
 import { RequestDetail } from '@/components/requests/RequestDetail';
 import { FlatView } from '@/components/views/FlatView';
+import { SessionReportView } from '@/components/views/SessionReportView';
 import { Separator } from '@/components/ui/separator';
-import { useViewMode } from '@/stores/appStore';
+import { useViewMode, useSidebarVisible } from '@/stores/appStore';
 
 function TreeLayout() {
   return (
@@ -33,19 +34,34 @@ function FlatLayout() {
   );
 }
 
+function ReportLayout() {
+  return (
+    <main className="flex-1 min-h-0">
+      <SessionReportView />
+    </main>
+  );
+}
+
 function App() {
   // Initialize WebSocket connection
   useWebSocket();
 
   const viewMode = useViewMode();
+  const sidebarVisible = useSidebarVisible();
 
   return (
     <div className="h-screen flex flex-col bg-background">
       <Header />
       <div className="flex-1 flex min-h-0">
-        <Sidebar />
-        <Separator orientation="vertical" />
-        {viewMode === 'tree' ? <TreeLayout /> : <FlatLayout />}
+        {sidebarVisible && (
+          <>
+            <Sidebar />
+            <Separator orientation="vertical" />
+          </>
+        )}
+        {viewMode === 'tree' && <TreeLayout />}
+        {viewMode === 'flat' && <FlatLayout />}
+        {viewMode === 'report' && <ReportLayout />}
       </div>
     </div>
   );

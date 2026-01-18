@@ -6,7 +6,7 @@ import type {
   WSMessage,
 } from '@/lib/types';
 
-export type ViewMode = 'tree' | 'flat';
+export type ViewMode = 'tree' | 'flat' | 'report';
 
 interface AppState {
   // Connection
@@ -16,6 +16,17 @@ interface AppState {
   // View Mode
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+
+  // Sidebar
+  sidebarVisible: boolean;
+  setSidebarVisible: (visible: boolean) => void;
+  toggleSidebar: () => void;
+
+  // Report expand/collapse triggers
+  reportExpandTrigger: number;
+  reportCollapseTrigger: number;
+  triggerExpandAll: () => void;
+  triggerCollapseAll: () => void;
 
   // Sessions
   sessions: Map<string, Session>;
@@ -44,6 +55,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   // View Mode
   viewMode: 'tree',
   setViewMode: (mode) => set({ viewMode: mode }),
+
+  // Sidebar
+  sidebarVisible: true,
+  setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
+  toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
+
+  // Report expand/collapse triggers
+  reportExpandTrigger: 0,
+  reportCollapseTrigger: 0,
+  triggerExpandAll: () => set((state) => ({ reportExpandTrigger: state.reportExpandTrigger + 1 })),
+  triggerCollapseAll: () => set((state) => ({ reportCollapseTrigger: state.reportCollapseTrigger + 1 })),
 
   // Sessions
   sessions: new Map(),
@@ -194,6 +216,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 // Selectors for performance optimization
 export const useConnectionStatus = () => useAppStore((state) => state.connectionStatus);
 export const useViewMode = () => useAppStore((state) => state.viewMode);
+export const useSidebarVisible = () => useAppStore((state) => state.sidebarVisible);
+export const useReportExpandTrigger = () => useAppStore((state) => state.reportExpandTrigger);
+export const useReportCollapseTrigger = () => useAppStore((state) => state.reportCollapseTrigger);
 export const useSessions = () => useAppStore((state) => state.sessions);
 export const useSelectedSessionId = () => useAppStore((state) => state.selectedSessionId);
 export const useSelectedRequestId = () => useAppStore((state) => state.selectedRequestId);
