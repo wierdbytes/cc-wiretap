@@ -9,7 +9,7 @@ import type {
 import { SSEStreamParser, reconstructResponseFromEvents } from './parser.js';
 import type { WiretapWebSocketServer } from './websocket.js';
 
-const CLAUDE_API_HOSTS = [
+export const CLAUDE_API_HOSTS = [
   'api.anthropic.com',
   'api.claude.ai',
 ];

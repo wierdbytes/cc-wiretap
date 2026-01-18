@@ -108,7 +108,7 @@ main().catch((error) => {
 export { loadOrGenerateCA, getCAPath } from './ca.js';
 export { createProxy } from './proxy.js';
 export { WiretapWebSocketServer } from './websocket.js';
-export { ClaudeInterceptor } from './interceptor.js';
+export { ClaudeInterceptor, CLAUDE_API_HOSTS } from './interceptor.js';
 export { SSEStreamParser, parseSSEChunk, reconstructResponseFromEvents } from './parser.js';
 export { createSetupServer, getSetupCommand } from './setup-server.js';
 export * from './types.js';

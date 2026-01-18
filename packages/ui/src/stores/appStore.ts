@@ -6,10 +6,16 @@ import type {
   WSMessage,
 } from '@/lib/types';
 
+export type ViewMode = 'tree' | 'flat';
+
 interface AppState {
   // Connection
   connectionStatus: ConnectionStatus;
   setConnectionStatus: (status: ConnectionStatus) => void;
+
+  // View Mode
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
 
   // Sessions
   sessions: Map<string, Session>;
@@ -34,6 +40,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Connection
   connectionStatus: 'disconnected',
   setConnectionStatus: (status) => set({ connectionStatus: status }),
+
+  // View Mode
+  viewMode: 'tree',
+  setViewMode: (mode) => set({ viewMode: mode }),
 
   // Sessions
   sessions: new Map(),
@@ -183,6 +193,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 // Selectors for performance optimization
 export const useConnectionStatus = () => useAppStore((state) => state.connectionStatus);
+export const useViewMode = () => useAppStore((state) => state.viewMode);
 export const useSessions = () => useAppStore((state) => state.sessions);
 export const useSelectedSessionId = () => useAppStore((state) => state.selectedSessionId);
 export const useSelectedRequestId = () => useAppStore((state) => state.selectedRequestId);
