@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
+import open from "open";
 import { loadOrGenerateCA, getCAPath } from "./ca.js";
 import { createProxy } from "./proxy.js";
 import { WiretapWebSocketServer } from "./websocket.js";
@@ -89,14 +90,18 @@ async function main() {
         );
         console.log(chalk.gray("   claude"));
         console.log();
+        const uiUrl = `http://localhost:${uiPort}`;
         console.log(
           chalk.yellow("=>"),
           chalk.yellow.bold("UI:"),
-          chalk.cyan(`http://localhost:${uiPort}`),
+          chalk.cyan(uiUrl),
         );
         console.log();
         console.log(chalk.gray("─".repeat(60)));
         console.log();
+
+        // Open browser automatically
+        await open(uiUrl);
 
         // Handle shutdown
         const shutdown = async () => {

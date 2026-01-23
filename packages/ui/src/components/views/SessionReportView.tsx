@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSelectedRequest, useReportExpandTrigger, useReportCollapseTrigger, useSystemPromptToggleTrigger, useToolsToggleTrigger, useMessagesToggleTrigger } from '@/stores/appStore';
+import { useSelectedRequest, useRequests, useReportExpandTrigger, useReportCollapseTrigger, useSystemPromptToggleTrigger, useToolsToggleTrigger, useMessagesToggleTrigger } from '@/stores/appStore';
 import { JsonView, defaultStyles } from 'react-json-view-lite';
 import type {
   Request,
@@ -474,6 +474,108 @@ function ResponseBlock({
   );
 }
 
+// Setup instructions when no requests
+function SetupInstructions() {
+  const [copied, setCopied] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
+  const setupCommand = 'eval "$(curl -s http://localhost:8082/setup)"';
+
+  const copyToClipboard = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(setupCommand);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = setupCommand;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, []);
+
+  return (
+    <div className="setup-page">
+      {/* Animated background */}
+      <div className="setup-bg">
+        <div className="setup-bg-grid" />
+        <div className="setup-bg-glow" />
+        <div className="setup-bg-scanline" />
+      </div>
+
+      {/* Main content */}
+      <div className="setup-content">
+        <div className="setup-header">
+          <div className="setup-logo">
+            <span className="setup-logo-bracket">[</span>
+            <span className="setup-logo-text">WIRETAP</span>
+            <span className="setup-logo-bracket">]</span>
+          </div>
+          <p className="setup-tagline">Intercept & visualize <span className="setup-highlight">Claude Code</span> traffic</p>
+        </div>
+
+        {/* Steps */}
+        <div className="setup-steps">
+          {/* Step 1 */}
+          <div
+            className={`setup-step ${activeStep === 0 ? 'active' : ''}`}
+            onMouseEnter={() => setActiveStep(0)}
+          >
+            <div className="setup-step-number">01</div>
+            <div className="setup-step-content">
+              <h3>Configure Terminal</h3>
+              <p>Run this in any terminal to route traffic through the proxy</p>
+              <div className="setup-command" onClick={copyToClipboard}>
+                <div className="setup-command-prompt">$</div>
+                <code>{setupCommand}</code>
+                <button className={`setup-command-copy ${copied ? 'copied' : ''}`}>
+                  {copied ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div
+            className={`setup-step ${activeStep === 1 ? 'active' : ''}`}
+            onMouseEnter={() => setActiveStep(1)}
+          >
+            <div className="setup-step-number">02</div>
+            <div className="setup-step-content">
+              <h3>Launch Claude</h3>
+              <p>Start Claude Code in the same terminal</p>
+              <div className="setup-command">
+                <div className="setup-command-prompt">$</div>
+                <code>claude</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="setup-footer">
+          <div className="setup-footer-divider" />
+          <div className="setup-footer-hint">
+            <span className="setup-kbd">unset-wiretap</span> to disable
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Single request report card
 function RequestReportCard({
   request,
@@ -563,6 +665,8 @@ function RequestReportCard({
 // Main report view component
 export function SessionReportView() {
   const selectedRequest = useSelectedRequest();
+  const requests = useRequests();
+  const hasRequests = requests.size > 0;
 
   // Expanded state management
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>(
@@ -755,6 +859,10 @@ export function SessionReportView() {
     }
     prevMessagesToggleTrigger.current = messagesToggleTrigger;
   }, [messagesToggleTrigger, toggleAllMessages]);
+
+  if (!hasRequests) {
+    return <SetupInstructions />;
+  }
 
   if (!selectedRequest) {
     return <div className="report-empty">Select a request to view details</div>;
