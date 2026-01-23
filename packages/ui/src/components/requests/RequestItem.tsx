@@ -1,6 +1,6 @@
 import { Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatTimestamp, formatDuration, extractModelName } from '@/lib/utils';
+import { formatTimestamp, formatDuration, extractModelName, formatTokenCount } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { Request } from '@/lib/types';
 
@@ -15,7 +15,13 @@ export function RequestItem({ request, isSelected, onClick }: RequestItemProps) 
   const response = request.response;
   const isMessageResponse = response?.type === 'message';
   const hasError = !!request.error || response?.type === 'error';
-  const inputTokens = isMessageResponse ? response.usage.input_tokens : undefined;
+
+  // Calculate total input tokens including cache
+  const totalInputTokens = isMessageResponse
+    ? (response.usage.input_tokens || 0) +
+      (response.usage.cache_read_input_tokens || 0) +
+      (response.usage.cache_creation_input_tokens || 0)
+    : undefined;
   const outputTokens = isMessageResponse ? response.usage.output_tokens : undefined;
 
   return (
@@ -42,12 +48,12 @@ export function RequestItem({ request, isSelected, onClick }: RequestItemProps) 
               error
             </Badge>
           )}
-          {inputTokens !== undefined && outputTokens !== undefined && (
+          {totalInputTokens !== undefined && outputTokens !== undefined && (
             <span className="flex items-center gap-1">
               <ArrowUp className="h-3 w-3" />
-              {inputTokens}
+              {formatTokenCount(totalInputTokens)}
               <ArrowDown className="h-3 w-3 ml-1" />
-              {outputTokens}
+              {formatTokenCount(outputTokens)}
             </span>
           )}
         </div>

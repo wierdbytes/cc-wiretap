@@ -4,13 +4,34 @@ import { useHotkeys } from '@/hooks/useHotkeys';
 import { Header } from '@/components/layout/Header';
 import { RequestList } from '@/components/requests/RequestList';
 import { SessionReportView } from '@/components/views/SessionReportView';
-import { useAppStore, useSidebarVisible, useConnectionStatus } from '@/stores/appStore';
+import { useAppStore, useSidebarVisible, useConnectionStatus, useRequests } from '@/stores/appStore';
+import { formatTokenCount } from '@/lib/utils';
 
 function RequestsPanel() {
+  const requestsMap = useRequests();
+
+  const totalInputTokens = useMemo(() => {
+    let total = 0;
+    for (const request of requestsMap.values()) {
+      if (request.response?.type === 'message') {
+        const usage = request.response.usage;
+        total += (usage.input_tokens || 0) +
+                 (usage.cache_read_input_tokens || 0) +
+                 (usage.cache_creation_input_tokens || 0);
+      }
+    }
+    return total;
+  }, [requestsMap]);
+
   return (
     <div className="w-80 flex flex-col border-r border-border">
-      <div className="p-3 border-b border-border">
+      <div className="p-3 border-b border-border flex items-center justify-between">
         <h2 className="text-sm font-semibold">Requests</h2>
+        {totalInputTokens > 0 && (
+          <span className="text-xs text-muted-foreground" title="Total input tokens sent">
+            ↑ {formatTokenCount(totalInputTokens)}
+          </span>
+        )}
       </div>
       <div className="flex-1 min-h-0">
         <RequestList />

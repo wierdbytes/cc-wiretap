@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Cpu, MessageSquare, Clock, ArrowUp, ArrowDown, Database, BookOpen, PenLine } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSelectedRequest, useReportExpandTrigger, useReportCollapseTrigger, useSystemPromptToggleTrigger, useToolsToggleTrigger, useMessagesToggleTrigger } from '@/stores/appStore';
-import { formatDuration, extractModelName } from '@/lib/utils';
+import { formatDuration, extractModelName, formatTokenCount } from '@/lib/utils';
 import { JsonView, defaultStyles } from 'react-json-view-lite';
 import type {
   Request,
@@ -515,20 +516,87 @@ function RequestReportCard({
   const messages = request.requestBody?.messages || [];
   const msgCount = messages.length;
 
+  // Extract token usage from response
+  const usage = request.response?.type === 'message' ? request.response.usage : null;
+  const inputTokens = usage?.input_tokens || 0;
+  const outputTokens = usage?.output_tokens || 0;
+  const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+  const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+
+  // Total input = regular input + cache read + cache creation
+  const totalInputTokens = inputTokens + cacheReadTokens + cacheCreationTokens;
+
   return (
     <div className="report-request-card">
-      <div className="report-header">
-        <h2>Claude Code Trace</h2>
-        <div className="report-meta">
-          <strong>Model:</strong> {extractModelName(model)} |{' '}
-          <strong>Messages:</strong> {msgCount}
-          {request.durationMs !== undefined && (
-            <>
-              {' '}
-              | <strong>Duration:</strong> {formatDuration(request.durationMs)}
-            </>
-          )}
+      <div className="report-header-compact">
+        <div className="report-meta-item" title="Model">
+          <Cpu className="report-meta-icon" />
+          <span className="report-meta-value model">{extractModelName(model)}</span>
         </div>
+
+        <div className="report-meta-divider" />
+
+        <div className="report-meta-item" title="Messages">
+          <MessageSquare className="report-meta-icon" />
+          <span className="report-meta-value">{msgCount}</span>
+        </div>
+
+        {request.durationMs !== undefined && (
+          <>
+            <div className="report-meta-divider" />
+            <div className="report-meta-item" title="Duration">
+              <Clock className="report-meta-icon" />
+              <span className="report-meta-value">{formatDuration(request.durationMs)}</span>
+            </div>
+          </>
+        )}
+
+        {usage && (
+          <>
+            <div className="report-meta-divider" />
+            <div className="report-meta-item" title="Total input tokens">
+              <ArrowUp className="report-meta-icon input" />
+              <span className="report-meta-value">{formatTokenCount(totalInputTokens)}</span>
+            </div>
+
+            {(cacheReadTokens > 0 || cacheCreationTokens > 0) && (
+              <div className="report-cache-breakdown">
+                <span className="report-cache-bracket">(</span>
+                {cacheReadTokens > 0 && (
+                  <div className="report-meta-item report-cache-read" title="Cache read tokens (0.1x cost)">
+                    <BookOpen className="report-meta-icon cache-read" />
+                    <span className="report-meta-value cache-read">{formatTokenCount(cacheReadTokens)}</span>
+                  </div>
+                )}
+                {cacheReadTokens > 0 && cacheCreationTokens > 0 && (
+                  <span className="report-cache-plus">+</span>
+                )}
+                {cacheCreationTokens > 0 && (
+                  <div className="report-meta-item report-cache-write" title="Cache write tokens (1.25x cost)">
+                    <PenLine className="report-meta-icon cache-write" />
+                    <span className="report-meta-value cache-write">{formatTokenCount(cacheCreationTokens)}</span>
+                  </div>
+                )}
+                {inputTokens > 0 && (cacheReadTokens > 0 || cacheCreationTokens > 0) && (
+                  <>
+                    <span className="report-cache-plus">+</span>
+                    <div className="report-meta-item report-uncached" title="Uncached input tokens">
+                      <Database className="report-meta-icon uncached" />
+                      <span className="report-meta-value uncached">{formatTokenCount(inputTokens)}</span>
+                    </div>
+                  </>
+                )}
+                <span className="report-cache-bracket">)</span>
+              </div>
+            )}
+
+            <div className="report-meta-divider" />
+            <div className="report-meta-item" title="Output tokens">
+              <ArrowDown className="report-meta-icon output" />
+              <span className="report-meta-value">{formatTokenCount(outputTokens)}</span>
+            </div>
+          </>
+        )}
       </div>
 
       <SystemPromptSection

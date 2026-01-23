@@ -39,7 +39,35 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 export function extractModelName(model: string): string {
-  // Extract the friendly model name
+  // Map model IDs to friendly display names
+  const modelLower = model.toLowerCase();
+
+  if (modelLower.includes('opus-4-5') || modelLower.includes('opus-4.5')) {
+    return 'Opus 4.5';
+  }
+  if (modelLower.includes('opus-4') || modelLower.includes('opus4')) {
+    return 'Opus 4';
+  }
+  if (modelLower.includes('sonnet-4') || modelLower.includes('sonnet4')) {
+    return 'Sonnet 4';
+  }
+  if (modelLower.includes('sonnet-3-5') || modelLower.includes('sonnet-3.5')) {
+    return 'Sonnet 3.5';
+  }
+  if (modelLower.includes('sonnet')) {
+    return 'Sonnet';
+  }
+  if (modelLower.includes('haiku-3') || modelLower.includes('haiku3')) {
+    return 'Haiku 3';
+  }
+  if (modelLower.includes('haiku')) {
+    return 'Haiku';
+  }
+  if (modelLower.includes('opus')) {
+    return 'Opus';
+  }
+
+  // Fallback: extract basic model name
   const parts = model.split('-');
   if (parts.length >= 2) {
     return parts.slice(0, 2).join('-');
