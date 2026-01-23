@@ -10,26 +10,28 @@ import { formatTokenCount } from '@/lib/utils';
 function RequestsPanel() {
   const requestsMap = useRequests();
 
-  const totalInputTokens = useMemo(() => {
-    let total = 0;
+  const { totalInputTokens, totalOutputTokens } = useMemo(() => {
+    let inputTotal = 0;
+    let outputTotal = 0;
     for (const request of requestsMap.values()) {
       if (request.response?.type === 'message') {
         const usage = request.response.usage;
-        total += (usage.input_tokens || 0) +
+        inputTotal += (usage.input_tokens || 0) +
                  (usage.cache_read_input_tokens || 0) +
                  (usage.cache_creation_input_tokens || 0);
+        outputTotal += usage.output_tokens || 0;
       }
     }
-    return total;
+    return { totalInputTokens: inputTotal, totalOutputTokens: outputTotal };
   }, [requestsMap]);
 
   return (
     <div className="w-80 flex flex-col border-r border-border">
       <div className="p-3 border-b border-border flex items-center justify-between">
         <h2 className="text-sm font-semibold">Requests</h2>
-        {totalInputTokens > 0 && (
-          <span className="text-xs text-muted-foreground" title="Total input tokens sent">
-            ↑ {formatTokenCount(totalInputTokens)}
+        {(totalInputTokens > 0 || totalOutputTokens > 0) && (
+          <span className="text-xs text-muted-foreground" title="Total tokens (input / output)">
+            ↑ {formatTokenCount(totalInputTokens)} ↓ {formatTokenCount(totalOutputTokens)}
           </span>
         )}
       </div>
