@@ -18,13 +18,18 @@ interface AppState {
   // Expand/collapse triggers
   reportExpandTrigger: number;
   reportCollapseTrigger: number;
+  systemPromptToggleTrigger: number;
+  toolsToggleTrigger: number;
   triggerExpandAll: () => void;
   triggerCollapseAll: () => void;
+  triggerToggleSystemPrompt: () => void;
+  triggerToggleTools: () => void;
 
   // Requests
   requests: Map<string, Request>;
   selectedRequestId: string | null;
   selectRequest: (requestId: string | null) => void;
+  selectLastRequest: () => void;
 
   // Actions
   handleMessage: (message: WSMessage) => void;
@@ -48,13 +53,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Expand/collapse triggers
   reportExpandTrigger: 0,
   reportCollapseTrigger: 0,
+  systemPromptToggleTrigger: 0,
+  toolsToggleTrigger: 0,
   triggerExpandAll: () => set((state) => ({ reportExpandTrigger: state.reportExpandTrigger + 1 })),
   triggerCollapseAll: () => set((state) => ({ reportCollapseTrigger: state.reportCollapseTrigger + 1 })),
+  triggerToggleSystemPrompt: () => set((state) => ({ systemPromptToggleTrigger: state.systemPromptToggleTrigger + 1 })),
+  triggerToggleTools: () => set((state) => ({ toolsToggleTrigger: state.toolsToggleTrigger + 1 })),
 
   // Requests
   requests: new Map(),
   selectedRequestId: null,
   selectRequest: (requestId) => set({ selectedRequestId: requestId }),
+  selectLastRequest: () => {
+    const { requests } = get();
+    if (requests.size === 0) return;
+
+    const sorted = [...requests.values()].sort(
+      (a, b) => b.timestamp - a.timestamp
+    );
+    if (sorted.length > 0) {
+      set({ selectedRequestId: sorted[0].id });
+    }
+  },
 
   // Actions
   handleMessage: (message) => {
@@ -163,6 +183,8 @@ export const useConnectionStatus = () => useAppStore((state) => state.connection
 export const useSidebarVisible = () => useAppStore((state) => state.sidebarVisible);
 export const useReportExpandTrigger = () => useAppStore((state) => state.reportExpandTrigger);
 export const useReportCollapseTrigger = () => useAppStore((state) => state.reportCollapseTrigger);
+export const useSystemPromptToggleTrigger = () => useAppStore((state) => state.systemPromptToggleTrigger);
+export const useToolsToggleTrigger = () => useAppStore((state) => state.toolsToggleTrigger);
 export const useSelectedRequestId = () => useAppStore((state) => state.selectedRequestId);
 export const useRequests = () => useAppStore((state) => state.requests);
 export const useSelectedRequest = () => {

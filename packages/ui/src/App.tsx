@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useHotkeys } from '@/hooks/useHotkeys';
 import { Header } from '@/components/layout/Header';
 import { RequestList } from '@/components/requests/RequestList';
 import { SessionReportView } from '@/components/views/SessionReportView';
-import { useSidebarVisible } from '@/stores/appStore';
+import { useAppStore, useSidebarVisible } from '@/stores/appStore';
 
 function RequestsPanel() {
   return (
@@ -20,6 +22,27 @@ function RequestsPanel() {
 function App() {
   useWebSocket();
   const sidebarVisible = useSidebarVisible();
+
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+  const triggerCollapseAll = useAppStore((s) => s.triggerCollapseAll);
+  const triggerExpandAll = useAppStore((s) => s.triggerExpandAll);
+  const selectLastRequest = useAppStore((s) => s.selectLastRequest);
+  const triggerToggleSystemPrompt = useAppStore((s) => s.triggerToggleSystemPrompt);
+  const triggerToggleTools = useAppStore((s) => s.triggerToggleTools);
+
+  const hotkeys = useMemo(
+    () => [
+      { code: 'KeyS', action: toggleSidebar, description: 'Toggle sidebar' },
+      { code: 'KeyF', action: triggerCollapseAll, description: 'Fold all' },
+      { code: 'KeyE', action: triggerExpandAll, description: 'Expand all' },
+      { code: 'Space', action: selectLastRequest, description: 'Select last message' },
+      { code: 'Digit1', action: triggerToggleSystemPrompt, description: 'Toggle system prompt' },
+      { code: 'Digit2', action: triggerToggleTools, description: 'Toggle tools' },
+    ],
+    [toggleSidebar, triggerCollapseAll, triggerExpandAll, selectLastRequest, triggerToggleSystemPrompt, triggerToggleTools]
+  );
+
+  useHotkeys(hotkeys);
 
   return (
     <div className="h-screen flex flex-col bg-background">

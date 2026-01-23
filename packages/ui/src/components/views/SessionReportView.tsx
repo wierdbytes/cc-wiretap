@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSelectedRequest, useReportExpandTrigger, useReportCollapseTrigger } from '@/stores/appStore';
+import { useSelectedRequest, useReportExpandTrigger, useReportCollapseTrigger, useSystemPromptToggleTrigger, useToolsToggleTrigger } from '@/stores/appStore';
 import { formatDuration, extractModelName } from '@/lib/utils';
 import { JsonView, defaultStyles } from 'react-json-view-lite';
 import type {
@@ -709,8 +709,10 @@ export function SessionReportView() {
   // Listen to expand/collapse triggers from header
   const expandTrigger = useReportExpandTrigger();
   const collapseTrigger = useReportCollapseTrigger();
+  const systemPromptToggleTrigger = useSystemPromptToggleTrigger();
   const prevExpandTrigger = useRef(expandTrigger);
   const prevCollapseTrigger = useRef(collapseTrigger);
+  const prevSystemPromptToggleTrigger = useRef(systemPromptToggleTrigger);
 
   useEffect(() => {
     if (expandTrigger > prevExpandTrigger.current) {
@@ -725,6 +727,23 @@ export function SessionReportView() {
     }
     prevCollapseTrigger.current = collapseTrigger;
   }, [collapseTrigger, collapseAll]);
+
+  useEffect(() => {
+    if (systemPromptToggleTrigger > prevSystemPromptToggleTrigger.current) {
+      toggleSystem();
+    }
+    prevSystemPromptToggleTrigger.current = systemPromptToggleTrigger;
+  }, [systemPromptToggleTrigger, toggleSystem]);
+
+  const toolsToggleTrigger = useToolsToggleTrigger();
+  const prevToolsToggleTrigger = useRef(toolsToggleTrigger);
+
+  useEffect(() => {
+    if (toolsToggleTrigger > prevToolsToggleTrigger.current) {
+      toggleTools();
+    }
+    prevToolsToggleTrigger.current = toolsToggleTrigger;
+  }, [toolsToggleTrigger, toggleTools]);
 
   if (!selectedRequest) {
     return <div className="report-empty">Select a request to view details</div>;
