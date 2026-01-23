@@ -2,6 +2,8 @@
 
 HTTP/HTTPS proxy for intercepting and visualizing Claude Code API traffic in real-time.
 
+![CC Wiretap Dashboard](assets/screen-2026-01-23-21.08.29.png)
+
 ## Quick Start
 
 ```bash
