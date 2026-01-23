@@ -1,11 +1,11 @@
-# Claude Wiretap
+# CC Wiretap
 
 HTTP/HTTPS proxy for intercepting and visualizing Claude Code traffic.
 
 ## Project Structure
 
 ```
-claude-wiretap/
+cc-wiretap/
 ├── packages/
 │   ├── proxy/          # Backend - Node.js proxy server
 │   └── ui/             # Frontend - React + Vite dashboard
@@ -53,7 +53,7 @@ eval (curl -s http://localhost:8082/setup?shell=fish)
 ### Method 2: Manual setup
 
 ```bash
-NODE_EXTRA_CA_CERTS="/Users/mentor/.claude-wiretap/ca.pem" \
+NODE_EXTRA_CA_CERTS="$HOME/.cc-wiretap/ca.pem" \
 HTTPS_PROXY=http://localhost:8080 \
 claude
 ```
@@ -67,7 +67,7 @@ claude
 | 8082 | Setup server (terminal eval endpoint) |
 | 3000 | UI dev server (Vite) |
 
-## Package: @claude-wiretap/proxy
+## Package: @cc-wiretap/proxy
 
 Backend proxy server using mockttp.
 
@@ -75,7 +75,7 @@ Backend proxy server using mockttp.
 
 - `src/index.ts` - CLI entry point (commander)
 - `src/types.ts` - Claude API TypeScript types
-- `src/ca.ts` - CA certificate generation (~/.claude-wiretap/)
+- `src/ca.ts` - CA certificate generation (~/.cc-wiretap/)
 - `src/parser.ts` - SSE streaming parser
 - `src/websocket.ts` - WebSocket server for UI communication
 - `src/interceptor.ts` - Request/response interception logic
@@ -89,7 +89,7 @@ Backend proxy server using mockttp.
 - commander - CLI framework
 - chalk - Terminal styling
 
-## Package: @claude-wiretap/ui
+## Package: @cc-wiretap/ui
 
 React frontend dashboard.
 
@@ -103,15 +103,15 @@ React frontend dashboard.
 
 ### UI Features
 
-- Sessions panel - List of intercepted sessions
-- Requests panel - Requests within selected session
-- Detail tabs:
-  - Messages - Conversation view
-  - Streaming - Live SSE events
-  - System - System prompt blocks
-  - Tools - Tool definitions and calls
-  - Usage - Token counts and settings
-  - Raw JSON - Complete request/response data
+- Header - Connection status, request info, token usage, rate limits
+- Requests panel (sidebar) - List of intercepted API requests
+- Request detail view - Collapsible report with:
+  - System prompt section
+  - Available tools section (with schemas)
+  - Messages (user/assistant) with preview when collapsed
+  - Thinking blocks
+  - Tool calls and results
+  - Response with stop reason
 
 ### Keyboard Shortcuts
 
@@ -174,13 +174,13 @@ type WSMessage =
 
 ## CA Certificate
 
-On first run, a CA certificate is generated at `~/.claude-wiretap/`:
+On first run, a CA certificate is generated at `~/.cc-wiretap/`:
 - `ca.pem` - Certificate (use with NODE_EXTRA_CA_CERTS)
 - `ca-key.pem` - Private key
 
 To trust system-wide (macOS):
 ```bash
-sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/.claude-wiretap/ca.pem
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/.cc-wiretap/ca.pem
 ```
 
 ## Development
