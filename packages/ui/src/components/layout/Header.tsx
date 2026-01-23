@@ -1,19 +1,18 @@
 import { useCallback } from 'react';
-import { Radio, Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown, Keyboard, Loader2 } from 'lucide-react';
+import { Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown, Keyboard, Loader2, Cpu, MessageSquare, Clock, ArrowUp, ArrowDown, BookOpen, PenLine, Database, Wifi, WifiOff, CircleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { HotkeysDialog } from '@/components/ui/hotkeys-dialog';
-import { RateLimitIndicator } from '@/components/layout/RateLimitIndicator';
-import { useConnectionStatus, useSidebarVisible, useShowClearDialog, useShowHotkeysDialog, useAppStore } from '@/stores/appStore';
+import { useConnectionStatus, useSidebarVisible, useShowClearDialog, useShowHotkeysDialog, useAppStore, useSelectedRequest } from '@/stores/appStore';
 import { sendWebSocketMessage, reconnectWebSocket } from '@/hooks/useWebSocket';
+import { formatDuration, extractModelName, formatTokenCount } from '@/lib/utils';
 import type { ConnectionStatus } from '@/lib/types';
 
-const statusConfig: Record<ConnectionStatus, { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary'; clickable: boolean }> = {
-  connected: { label: 'Connected', variant: 'success', clickable: false },
-  connecting: { label: 'Connecting', variant: 'warning', clickable: false },
-  disconnected: { label: 'Disconnected', variant: 'secondary', clickable: true },
-  error: { label: 'Error', variant: 'destructive', clickable: true },
+const statusConfig: Record<ConnectionStatus, { label: string; color: string; clickable: boolean }> = {
+  connected: { label: 'Connected', color: 'text-emerald-500', clickable: false },
+  connecting: { label: 'Connecting...', color: 'text-yellow-500', clickable: false },
+  disconnected: { label: 'Disconnected - Click to reconnect', color: 'text-muted-foreground', clickable: true },
+  error: { label: 'Connection error - Click to reconnect', color: 'text-red-500', clickable: true },
 };
 
 export function Header() {
@@ -26,8 +25,18 @@ export function Header() {
   const toggleSidebar = useAppStore((state) => state.toggleSidebar);
   const triggerExpandAll = useAppStore((state) => state.triggerExpandAll);
   const triggerCollapseAll = useAppStore((state) => state.triggerCollapseAll);
-  const { label, variant, clickable } = statusConfig[connectionStatus];
-  const isConnecting = connectionStatus === 'connecting';
+  const selectedRequest = useSelectedRequest();
+  const { label, color, clickable } = statusConfig[connectionStatus];
+
+  // Extract request info
+  const model = selectedRequest?.requestBody?.model || '';
+  const msgCount = selectedRequest?.requestBody?.messages?.length || 0;
+  const usage = selectedRequest?.response?.type === 'message' ? selectedRequest.response.usage : null;
+  const inputTokens = usage?.input_tokens || 0;
+  const outputTokens = usage?.output_tokens || 0;
+  const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+  const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+  const totalInputTokens = inputTokens + cacheReadTokens + cacheCreationTokens;
 
   const handleReconnect = useCallback(() => {
     if (clickable) {
@@ -57,35 +66,108 @@ export function Header() {
   }, [setShowHotkeysDialog]);
 
   return (
-    <header className="h-14 border-b border-border bg-card px-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
+    <header className="h-12 md:h-14 border-b border-border bg-card px-2 md:px-4 flex items-center justify-between">
+      <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleSidebar}
-          className="h-8 w-8"
+          className="h-6 w-6 md:h-8 md:w-8"
           title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
         >
           {sidebarVisible ? (
-            <PanelLeftClose className="h-4 w-4" />
+            <PanelLeftClose className="h-3.5 w-3.5 md:h-4 md:w-4" />
           ) : (
-            <PanelLeft className="h-4 w-4" />
+            <PanelLeft className="h-3.5 w-3.5 md:h-4 md:w-4" />
           )}
         </Button>
-        <Radio className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-semibold">Claude Wiretap</h1>
-        <Badge
-          variant={variant}
-          className={`ml-2 gap-1.5 ${clickable ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+        <h1 className="text-sm md:text-lg font-semibold whitespace-nowrap"><span style={{ color: '#DE7356' }}>CC</span> Wiretap</h1>
+        <button
           onClick={handleReconnect}
-          title={clickable ? 'Click to reconnect (R)' : undefined}
+          className={`${color} ${clickable ? 'cursor-pointer hover:opacity-70' : 'cursor-default'} transition-opacity`}
+          title={label}
         >
-          {isConnecting && <Loader2 className="h-3 w-3 animate-spin" />}
-          {label}
-        </Badge>
+          {connectionStatus === 'connected' && <Wifi className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+          {connectionStatus === 'connecting' && <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />}
+          {connectionStatus === 'disconnected' && <WifiOff className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+          {connectionStatus === 'error' && <CircleAlert className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+        </button>
       </div>
-      <RateLimitIndicator />
-      <div className="flex items-center gap-2">
+
+      {selectedRequest && (
+        <div className="hidden sm:flex items-center gap-1.5 text-xs font-mono min-w-0 mx-2 overflow-hidden">
+          <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap" title="Model">
+            <Cpu className="h-3.5 w-3.5 opacity-60 shrink-0" />
+            <span className="text-emerald-400 font-medium">{extractModelName(model)}</span>
+          </div>
+
+          <span className="text-muted-foreground/40 mx-1">|</span>
+
+          <div className="flex items-center gap-1 text-muted-foreground" title="Messages">
+            <MessageSquare className="h-3.5 w-3.5 opacity-60" />
+            <span>{msgCount}</span>
+          </div>
+
+          {selectedRequest.durationMs !== undefined && (
+            <>
+              <span className="text-muted-foreground/40 mx-1">|</span>
+              <div className="flex items-center gap-1 text-muted-foreground" title="Duration">
+                <Clock className="h-3.5 w-3.5 opacity-60" />
+                <span>{formatDuration(selectedRequest.durationMs)}</span>
+              </div>
+            </>
+          )}
+
+          {usage && (
+            <>
+              <span className="text-muted-foreground/40 mx-1">|</span>
+              <div className="flex items-center gap-1 text-blue-400" title="Total input tokens">
+                <ArrowUp className="h-3.5 w-3.5" />
+                <span>{formatTokenCount(totalInputTokens)}</span>
+              </div>
+
+              {(cacheReadTokens > 0 || cacheCreationTokens > 0) && (
+                <div className="flex items-center gap-1 text-muted-foreground/60">
+                  <span>(</span>
+                  {cacheReadTokens > 0 && (
+                    <div className="flex items-center gap-0.5 text-green-400" title="Cache read (0.1x cost)">
+                      <BookOpen className="h-3 w-3" />
+                      <span>{formatTokenCount(cacheReadTokens)}</span>
+                    </div>
+                  )}
+                  {cacheReadTokens > 0 && cacheCreationTokens > 0 && (
+                    <span className="text-muted-foreground/40">+</span>
+                  )}
+                  {cacheCreationTokens > 0 && (
+                    <div className="flex items-center gap-0.5 text-orange-400" title="Cache write (1.25x cost)">
+                      <PenLine className="h-3 w-3" />
+                      <span>{formatTokenCount(cacheCreationTokens)}</span>
+                    </div>
+                  )}
+                  {inputTokens > 0 && (
+                    <>
+                      <span className="text-muted-foreground/40">+</span>
+                      <div className="flex items-center gap-0.5 text-muted-foreground" title="Uncached tokens">
+                        <Database className="h-3 w-3" />
+                        <span>{formatTokenCount(inputTokens)}</span>
+                      </div>
+                    </>
+                  )}
+                  <span>)</span>
+                </div>
+              )}
+
+              <span className="text-muted-foreground/40 mx-1">|</span>
+              <div className="flex items-center gap-1 text-emerald-400" title="Output tokens">
+                <ArrowDown className="h-3.5 w-3.5" />
+                <span>{formatTokenCount(outputTokens)}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="hidden lg:flex items-center gap-2 shrink-0">
         <Button
           variant="ghost"
           size="icon"

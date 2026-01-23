@@ -58,53 +58,12 @@ export class WiretapWebSocketServer {
   }
 
   private sendCurrentState(ws: WebSocket): void {
-    // Send all existing requests to the newly connected client
-    for (const request of this.requests.values()) {
+    // Send all existing requests in a single message for fast initial load
+    if (this.requests.size > 0) {
       this.sendToClient(ws, {
-        type: 'request_start',
-        requestId: request.id,
-        timestamp: request.timestamp,
-        method: request.method,
-        url: request.url,
-        headers: request.requestHeaders,
+        type: 'history_sync',
+        requests: Array.from(this.requests.values()),
       });
-
-      if (request.requestBody) {
-        this.sendToClient(ws, {
-          type: 'request_body',
-          requestId: request.id,
-          body: request.requestBody,
-        });
-      }
-
-      if (request.statusCode !== undefined) {
-        this.sendToClient(ws, {
-          type: 'response_start',
-          requestId: request.id,
-          timestamp: request.responseStartTime || request.timestamp,
-          statusCode: request.statusCode,
-          headers: request.responseHeaders || {},
-        });
-      }
-
-      // Send SSE events
-      for (const event of request.sseEvents) {
-        this.sendToClient(ws, {
-          type: 'response_chunk',
-          requestId: request.id,
-          event,
-        });
-      }
-
-      if (request.response) {
-        this.sendToClient(ws, {
-          type: 'response_complete',
-          requestId: request.id,
-          timestamp: Date.now(),
-          response: request.response,
-          durationMs: request.durationMs || 0,
-        });
-      }
     }
   }
 

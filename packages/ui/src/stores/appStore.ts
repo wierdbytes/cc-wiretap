@@ -216,6 +216,44 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         break;
       }
+
+      case 'history_sync': {
+        // Bulk load all requests in a single state update
+        const newRequests = new Map<string, Request>();
+        let latestRateLimitInfo: RateLimitInfo | null = null;
+
+        for (const req of message.requests) {
+          newRequests.set(req.id, {
+            id: req.id,
+            timestamp: req.timestamp,
+            method: req.method,
+            url: req.url,
+            requestHeaders: req.requestHeaders,
+            requestBody: req.requestBody,
+            statusCode: req.statusCode,
+            responseHeaders: req.responseHeaders,
+            sseEvents: req.sseEvents,
+            response: req.response,
+            durationMs: req.durationMs,
+            error: req.error,
+            isStreaming: !req.response && !req.error,
+          });
+
+          // Extract rate limit from the latest response
+          if (req.responseHeaders) {
+            const rateLimitInfo = parseRateLimitHeaders(req.responseHeaders);
+            if (rateLimitInfo) {
+              latestRateLimitInfo = rateLimitInfo;
+            }
+          }
+        }
+
+        set({
+          requests: newRequests,
+          rateLimitInfo: latestRateLimitInfo,
+        });
+        break;
+      }
     }
   },
 

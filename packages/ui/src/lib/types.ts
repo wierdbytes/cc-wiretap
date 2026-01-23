@@ -201,7 +201,13 @@ export type WSMessage =
   | WSResponseChunk
   | WSResponseComplete
   | WSError
-  | WSClearAll;
+  | WSClearAll
+  | WSHistorySync;
+
+export interface WSHistorySync {
+  type: 'history_sync';
+  requests: Request[];
+}
 
 export interface WSClearAll {
   type: 'clear_all';
