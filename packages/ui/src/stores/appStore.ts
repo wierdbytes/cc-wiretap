@@ -3,12 +3,16 @@ import type {
   Request,
   ConnectionStatus,
   WSMessage,
+  RateLimitInfo,
 } from '@/lib/types';
 
 interface AppState {
   // Connection
   connectionStatus: ConnectionStatus;
   setConnectionStatus: (status: ConnectionStatus) => void;
+
+  // Rate limits
+  rateLimitInfo: RateLimitInfo | null;
 
   // Clear confirmation dialog
   showClearDialog: boolean;
@@ -50,10 +54,36 @@ interface AppState {
   getAllRequests: () => Request[];
 }
 
+function parseRateLimitHeaders(headers: Record<string, string>): RateLimitInfo | null {
+  const fiveHourUtil = headers['anthropic-ratelimit-unified-5h-utilization'];
+  const fiveHourReset = headers['anthropic-ratelimit-unified-5h-reset'];
+  const sevenDayUtil = headers['anthropic-ratelimit-unified-7d-utilization'];
+  const sevenDayReset = headers['anthropic-ratelimit-unified-7d-reset'];
+
+  if (!fiveHourUtil && !sevenDayUtil) {
+    return null;
+  }
+
+  return {
+    fiveHour: fiveHourUtil ? {
+      utilization: parseFloat(fiveHourUtil),
+      resetTimestamp: parseInt(fiveHourReset || '0', 10),
+    } : null,
+    sevenDay: sevenDayUtil ? {
+      utilization: parseFloat(sevenDayUtil),
+      resetTimestamp: parseInt(sevenDayReset || '0', 10),
+    } : null,
+    lastUpdated: Date.now(),
+  };
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   // Connection
   connectionStatus: 'disconnected',
   setConnectionStatus: (status) => set({ connectionStatus: status }),
+
+  // Rate limits
+  rateLimitInfo: null,
 
   // Clear confirmation dialog
   showClearDialog: false,
@@ -132,7 +162,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (request) {
           request.statusCode = message.statusCode;
           request.responseHeaders = message.headers;
-          set({ requests: newRequests });
+
+          // Extract rate limit info from response headers
+          const rateLimitInfo = parseRateLimitHeaders(message.headers);
+          if (rateLimitInfo) {
+            set({ requests: newRequests, rateLimitInfo });
+          } else {
+            set({ requests: newRequests });
+          }
         }
         break;
       }
@@ -224,3 +261,4 @@ export const useSelectedRequest = () => {
   if (!selectedRequestId) return null;
   return requests.get(selectedRequestId) || null;
 };
+export const useRateLimitInfo = () => useAppStore((state) => state.rateLimitInfo);

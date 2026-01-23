@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { HotkeysDialog } from '@/components/ui/hotkeys-dialog';
+import { RateLimitIndicator } from '@/components/layout/RateLimitIndicator';
 import { useConnectionStatus, useSidebarVisible, useShowClearDialog, useShowHotkeysDialog, useAppStore } from '@/stores/appStore';
 import { sendWebSocketMessage, reconnectWebSocket } from '@/hooks/useWebSocket';
 import type { ConnectionStatus } from '@/lib/types';
@@ -83,6 +84,7 @@ export function Header() {
           {label}
         </Badge>
       </div>
+      <RateLimitIndicator />
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"

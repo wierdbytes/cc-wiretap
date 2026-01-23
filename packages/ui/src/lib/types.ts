@@ -270,3 +270,17 @@ export interface Request {
 }
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+// Rate Limit Types
+
+export interface RateLimitInfo {
+  fiveHour: {
+    utilization: number;
+    resetTimestamp: number;
+  } | null;
+  sevenDay: {
+    utilization: number;
+    resetTimestamp: number;
+  } | null;
+  lastUpdated: number;
+}
