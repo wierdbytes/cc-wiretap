@@ -5,23 +5,17 @@ import type {
   WSMessage,
 } from '@/lib/types';
 
-export type ViewMode = 'tree' | 'flat' | 'report';
-
 interface AppState {
   // Connection
   connectionStatus: ConnectionStatus;
   setConnectionStatus: (status: ConnectionStatus) => void;
-
-  // View Mode
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
 
   // Sidebar
   sidebarVisible: boolean;
   setSidebarVisible: (visible: boolean) => void;
   toggleSidebar: () => void;
 
-  // Report expand/collapse triggers
+  // Expand/collapse triggers
   reportExpandTrigger: number;
   reportCollapseTrigger: number;
   triggerExpandAll: () => void;
@@ -46,16 +40,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionStatus: 'disconnected',
   setConnectionStatus: (status) => set({ connectionStatus: status }),
 
-  // View Mode
-  viewMode: 'tree',
-  setViewMode: (mode) => set({ viewMode: mode }),
-
   // Sidebar
   sidebarVisible: true,
   setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
   toggleSidebar: () => set((state) => ({ sidebarVisible: !state.sidebarVisible })),
 
-  // Report expand/collapse triggers
+  // Expand/collapse triggers
   reportExpandTrigger: 0,
   reportCollapseTrigger: 0,
   triggerExpandAll: () => set((state) => ({ reportExpandTrigger: state.reportExpandTrigger + 1 })),
@@ -173,7 +163,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 // Selectors for performance optimization
 export const useConnectionStatus = () => useAppStore((state) => state.connectionStatus);
-export const useViewMode = () => useAppStore((state) => state.viewMode);
 export const useSidebarVisible = () => useAppStore((state) => state.sidebarVisible);
 export const useReportExpandTrigger = () => useAppStore((state) => state.reportExpandTrigger);
 export const useReportCollapseTrigger = () => useAppStore((state) => state.reportCollapseTrigger);
