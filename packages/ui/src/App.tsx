@@ -23,7 +23,7 @@ function TreeLayout({ showSidebar }: { showSidebar: boolean }) {
   return (
     <>
       {showSidebar && <RequestsPanel />}
-      <main className="flex-1 min-h-0">
+      <main className="flex-1 min-h-0 min-w-0 overflow-hidden">
         <RequestDetail />
       </main>
     </>
@@ -42,7 +42,7 @@ function ReportLayout({ showSidebar }: { showSidebar: boolean }) {
   return (
     <>
       {showSidebar && <RequestsPanel />}
-      <main className="flex-1 min-h-0">
+      <main className="flex-1 min-h-0 min-w-0 overflow-hidden">
         <SessionReportView />
       </main>
     </>

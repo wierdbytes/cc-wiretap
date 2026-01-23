@@ -678,14 +678,22 @@ export function SessionReportView() {
   }, [selectedRequest]);
 
   const collapseAll = useCallback(() => {
+    if (!selectedRequest) return;
+
+    // Explicitly set all messages to collapsed
+    const newMessages: Record<number, boolean> = {};
+    selectedRequest.requestBody?.messages?.forEach((_, msgIndex) => {
+      newMessages[msgIndex] = false;
+    });
+
     setExpandedBlocks({});
     setSystemExpanded(false);
     setToolsExpanded(false);
     setToolItemsExpanded({});
     setToolSchemasExpanded({});
-    setMessagesExpanded({});
+    setMessagesExpanded(newMessages);
     setResponseExpanded(false);
-  }, []);
+  }, [selectedRequest]);
 
   // Reset expanded state when selected request changes
   useEffect(() => {

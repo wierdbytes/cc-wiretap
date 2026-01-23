@@ -26,10 +26,15 @@
   flex-direction: column;
   position: relative;
   background: var(--report-bg-primary);
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .report-content {
   padding: 20px;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .report-empty {
@@ -46,6 +51,8 @@
   margin-bottom: 40px;
   padding-bottom: 40px;
   border-bottom: 2px solid var(--report-border-color);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .report-request-card:last-child {
@@ -84,6 +91,8 @@
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--report-border-color);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .report-message-header {
@@ -97,6 +106,9 @@
   align-items: center;
   gap: 8px;
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .report-message-header::before {
@@ -115,8 +127,10 @@
 }
 
 .report-message-preview {
-  flex: 1;
+  flex: 1 1 0;
+  width: 0;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
