@@ -73,9 +73,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           isStreaming: true,
         });
         set({ requests: newRequests });
-
-        // Auto-select latest request
-        set({ selectedRequestId: message.requestId });
         break;
       }
 

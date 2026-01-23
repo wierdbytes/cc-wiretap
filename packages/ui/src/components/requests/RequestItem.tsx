@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatTimestamp, formatDuration, extractModelName } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,6 @@ export function RequestItem({ request, isSelected, onClick }: RequestItemProps) 
   const model = request.requestBody?.model || 'unknown';
   const response = request.response;
   const isMessageResponse = response?.type === 'message';
-  const hasToolUse = isMessageResponse && response.stop_reason === 'tool_use';
   const hasError = !!request.error || response?.type === 'error';
   const inputTokens = isMessageResponse ? response.usage.input_tokens : undefined;
   const outputTokens = isMessageResponse ? response.usage.output_tokens : undefined;
@@ -37,39 +36,27 @@ export function RequestItem({ request, isSelected, onClick }: RequestItemProps) 
             {extractModelName(model)}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {hasToolUse && (
-            <Badge variant="warning" className="text-[10px] px-1.5 py-0">
-              tool
-            </Badge>
-          )}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
           {hasError && (
             <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
               error
             </Badge>
           )}
-          {request.statusCode && (
-            <Badge
-              variant={request.statusCode >= 400 ? 'destructive' : 'secondary'}
-              className="text-[10px] px-1.5 py-0"
-            >
-              {request.statusCode}
-            </Badge>
+          {inputTokens !== undefined && outputTokens !== undefined && (
+            <span className="flex items-center gap-1">
+              <ArrowUp className="h-3 w-3" />
+              {inputTokens}
+              <ArrowDown className="h-3 w-3 ml-1" />
+              {outputTokens}
+            </span>
           )}
         </div>
       </div>
       <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
         <span>{formatTimestamp(request.timestamp)}</span>
-        <div className="flex items-center gap-2">
-          {inputTokens !== undefined && outputTokens !== undefined && (
-            <span>
-              {inputTokens} / {outputTokens}
-            </span>
-          )}
-          {request.durationMs !== undefined && (
-            <span>{formatDuration(request.durationMs)}</span>
-          )}
-        </div>
+        {request.durationMs !== undefined && (
+          <span>{formatDuration(request.durationMs)}</span>
+        )}
       </div>
     </button>
   );
