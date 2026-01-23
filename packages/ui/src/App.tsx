@@ -1,24 +1,28 @@
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Header } from '@/components/layout/Header';
-import { Sidebar } from '@/components/layout/Sidebar';
 import { RequestList } from '@/components/requests/RequestList';
 import { RequestDetail } from '@/components/requests/RequestDetail';
 import { FlatView } from '@/components/views/FlatView';
 import { SessionReportView } from '@/components/views/SessionReportView';
-import { Separator } from '@/components/ui/separator';
 import { useViewMode, useSidebarVisible } from '@/stores/appStore';
 
-function TreeLayout() {
+function RequestsPanel() {
+  return (
+    <div className="w-80 flex flex-col border-r border-border">
+      <div className="p-3 border-b border-border">
+        <h2 className="text-sm font-semibold">Requests</h2>
+      </div>
+      <div className="flex-1 min-h-0">
+        <RequestList />
+      </div>
+    </div>
+  );
+}
+
+function TreeLayout({ showSidebar }: { showSidebar: boolean }) {
   return (
     <>
-      <div className="w-80 flex flex-col border-r border-border">
-        <div className="p-3 border-b border-border">
-          <h2 className="text-sm font-semibold">Requests</h2>
-        </div>
-        <div className="flex-1 min-h-0">
-          <RequestList />
-        </div>
-      </div>
+      {showSidebar && <RequestsPanel />}
       <main className="flex-1 min-h-0">
         <RequestDetail />
       </main>
@@ -34,11 +38,14 @@ function FlatLayout() {
   );
 }
 
-function ReportLayout() {
+function ReportLayout({ showSidebar }: { showSidebar: boolean }) {
   return (
-    <main className="flex-1 min-h-0">
-      <SessionReportView />
-    </main>
+    <>
+      {showSidebar && <RequestsPanel />}
+      <main className="flex-1 min-h-0">
+        <SessionReportView />
+      </main>
+    </>
   );
 }
 
@@ -53,15 +60,9 @@ function App() {
     <div className="h-screen flex flex-col bg-background">
       <Header />
       <div className="flex-1 flex min-h-0">
-        {sidebarVisible && (
-          <>
-            <Sidebar />
-            <Separator orientation="vertical" />
-          </>
-        )}
-        {viewMode === 'tree' && <TreeLayout />}
+        {viewMode === 'tree' && <TreeLayout showSidebar={sidebarVisible} />}
         {viewMode === 'flat' && <FlatLayout />}
-        {viewMode === 'report' && <ReportLayout />}
+        {viewMode === 'report' && <ReportLayout showSidebar={sidebarVisible} />}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
-import type { WSMessage, Session, InterceptedRequest } from './types.js';
+import type { WSMessage, InterceptedRequest } from './types.js';
 import chalk from 'chalk';
 
 export interface WiretapWebSocketServerOptions {
@@ -11,7 +11,7 @@ export interface WiretapWebSocketServerOptions {
 export class WiretapWebSocketServer {
   private wss: WebSocketServer;
   private clients: Set<WebSocket> = new Set();
-  private sessions: Map<string, Session> = new Map();
+  private requests: Map<string, InterceptedRequest> = new Map();
 
   constructor(options: WiretapWebSocketServerOptions = {}) {
     if (options.server) {
@@ -45,65 +45,52 @@ export class WiretapWebSocketServer {
   }
 
   private sendCurrentState(ws: WebSocket): void {
-    // Send all existing sessions and requests to the newly connected client
-    for (const session of this.sessions.values()) {
+    // Send all existing requests to the newly connected client
+    for (const request of this.requests.values()) {
       this.sendToClient(ws, {
-        type: 'session_start',
-        sessionId: session.id,
-        timestamp: session.startTime,
+        type: 'request_start',
+        requestId: request.id,
+        timestamp: request.timestamp,
+        method: request.method,
+        url: request.url,
+        headers: request.requestHeaders,
       });
 
-      for (const request of session.requests) {
+      if (request.requestBody) {
         this.sendToClient(ws, {
-          type: 'request_start',
-          sessionId: session.id,
+          type: 'request_body',
           requestId: request.id,
-          timestamp: request.timestamp,
-          method: request.method,
-          url: request.url,
-          headers: request.requestHeaders,
+          body: request.requestBody,
         });
+      }
 
-        if (request.requestBody) {
-          this.sendToClient(ws, {
-            type: 'request_body',
-            sessionId: session.id,
-            requestId: request.id,
-            body: request.requestBody,
-          });
-        }
+      if (request.statusCode !== undefined) {
+        this.sendToClient(ws, {
+          type: 'response_start',
+          requestId: request.id,
+          timestamp: request.responseStartTime || request.timestamp,
+          statusCode: request.statusCode,
+          headers: request.responseHeaders || {},
+        });
+      }
 
-        if (request.statusCode !== undefined) {
-          this.sendToClient(ws, {
-            type: 'response_start',
-            sessionId: session.id,
-            requestId: request.id,
-            timestamp: request.responseStartTime || request.timestamp,
-            statusCode: request.statusCode,
-            headers: request.responseHeaders || {},
-          });
-        }
+      // Send SSE events
+      for (const event of request.sseEvents) {
+        this.sendToClient(ws, {
+          type: 'response_chunk',
+          requestId: request.id,
+          event,
+        });
+      }
 
-        // Send SSE events
-        for (const event of request.sseEvents) {
-          this.sendToClient(ws, {
-            type: 'response_chunk',
-            sessionId: session.id,
-            requestId: request.id,
-            event,
-          });
-        }
-
-        if (request.response) {
-          this.sendToClient(ws, {
-            type: 'response_complete',
-            sessionId: session.id,
-            requestId: request.id,
-            timestamp: Date.now(),
-            response: request.response,
-            durationMs: request.durationMs || 0,
-          });
-        }
+      if (request.response) {
+        this.sendToClient(ws, {
+          type: 'response_complete',
+          requestId: request.id,
+          timestamp: Date.now(),
+          response: request.response,
+          durationMs: request.durationMs || 0,
+        });
       }
     }
   }
@@ -123,45 +110,14 @@ export class WiretapWebSocketServer {
     }
   }
 
-  // Session management
+  // Request management
 
-  createSession(sessionId: string): Session {
-    const session: Session = {
-      id: sessionId,
-      startTime: Date.now(),
-      requests: [],
-    };
-    this.sessions.set(sessionId, session);
-
-    this.broadcast({
-      type: 'session_start',
-      sessionId,
-      timestamp: session.startTime,
-    });
-
-    return session;
+  addRequest(request: InterceptedRequest): void {
+    this.requests.set(request.id, request);
   }
 
-  getSession(sessionId: string): Session | undefined {
-    return this.sessions.get(sessionId);
-  }
-
-  getOrCreateSession(sessionId: string): Session {
-    let session = this.sessions.get(sessionId);
-    if (!session) {
-      session = this.createSession(sessionId);
-    }
-    return session;
-  }
-
-  addRequest(sessionId: string, request: InterceptedRequest): void {
-    const session = this.getOrCreateSession(sessionId);
-    session.requests.push(request);
-  }
-
-  getRequest(sessionId: string, requestId: string): InterceptedRequest | undefined {
-    const session = this.sessions.get(sessionId);
-    return session?.requests.find((r) => r.id === requestId);
+  getRequest(requestId: string): InterceptedRequest | undefined {
+    return this.requests.get(requestId);
   }
 
   // Stats
@@ -170,16 +126,8 @@ export class WiretapWebSocketServer {
     return this.clients.size;
   }
 
-  getSessionCount(): number {
-    return this.sessions.size;
-  }
-
-  getTotalRequestCount(): number {
-    let count = 0;
-    for (const session of this.sessions.values()) {
-      count += session.requests.length;
-    }
-    return count;
+  getRequestCount(): number {
+    return this.requests.size;
   }
 
   // Lifecycle

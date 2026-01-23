@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAppStore, useSelectedSessionId, useReportExpandTrigger, useReportCollapseTrigger } from '@/stores/appStore';
+import { useSelectedRequest, useReportExpandTrigger, useReportCollapseTrigger } from '@/stores/appStore';
 import { formatDuration, extractModelName } from '@/lib/utils';
 import { JsonView, defaultStyles } from 'react-json-view-lite';
 import type {
@@ -336,15 +336,41 @@ function ContentBlockRenderer({
   );
 }
 
+// Extract preview text from content
+function getContentPreview(content: ClaudeContent[]): string {
+  for (const block of content) {
+    if (block.type === 'text' && 'text' in block) {
+      return block.text.replace(/\s+/g, ' ').trim();
+    }
+    if (block.type === 'tool_use') {
+      return `Tool: ${(block as ToolUseContent).name}`;
+    }
+    if (block.type === 'tool_result') {
+      const result = block as ToolResultContent;
+      if (typeof result.content === 'string') {
+        return result.content.replace(/\s+/g, ' ').trim();
+      }
+    }
+    if (block.type === 'thinking' && 'thinking' in block) {
+      return (block as ThinkingContent).thinking.replace(/\s+/g, ' ').trim();
+    }
+  }
+  return '';
+}
+
 // Message block
 function MessageBlock({
   message,
   messageIndex,
+  expanded,
+  onToggle,
   expandedBlocks,
   onToggleBlock,
 }: {
   message: ClaudeMessage;
   messageIndex: number;
+  expanded: boolean;
+  onToggle: () => void;
   expandedBlocks: Record<string, boolean>;
   onToggleBlock: (key: string) => void;
 }) {
@@ -355,21 +381,30 @@ function MessageBlock({
     return Array.isArray(message.content) ? message.content : [];
   }, [message.content]);
 
+  const preview = useMemo(() => getContentPreview(contentArray), [contentArray]);
+
   return (
-    <div className={`report-message ${message.role}`}>
-      <div className="report-message-header">{message.role}</div>
-      <div className="report-message-content">
-        {contentArray.map((content, i) => (
-          <div key={i} className="report-content-block">
-            <ContentBlockRenderer
-              content={content}
-              blockKey={`msg-${messageIndex}-${i}`}
-              expandedBlocks={expandedBlocks}
-              onToggleBlock={onToggleBlock}
-            />
-          </div>
-        ))}
+    <div className={`report-message ${message.role} ${expanded ? 'expanded' : 'collapsed'}`}>
+      <div className="report-message-header" onClick={onToggle}>
+        <span className="report-message-role">{message.role}</span>
+        {!expanded && preview && (
+          <span className="report-message-preview">{preview}</span>
+        )}
       </div>
+      {expanded && (
+        <div className="report-message-content">
+          {contentArray.map((content, i) => (
+            <div key={i} className="report-content-block">
+              <ContentBlockRenderer
+                content={content}
+                blockKey={`msg-${messageIndex}-${i}`}
+                expandedBlocks={expandedBlocks}
+                onToggleBlock={onToggleBlock}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -378,18 +413,27 @@ function MessageBlock({
 function ResponseBlock({
   response,
   requestIndex,
+  expanded,
+  onToggle,
   expandedBlocks,
   onToggleBlock,
 }: {
   response: ClaudeResponse;
   requestIndex: number;
+  expanded: boolean;
+  onToggle: () => void;
   expandedBlocks: Record<string, boolean>;
   onToggleBlock: (key: string) => void;
 }) {
+  const contentArray = response.type === 'message' ? response.content || [] : [];
+  const preview = useMemo(() => getContentPreview(contentArray), [contentArray]);
+
   if (response.type === 'error') {
     return (
-      <div className="report-message assistant">
-        <div className="report-message-header">ASSISTANT (ERROR)</div>
+      <div className="report-message assistant expanded">
+        <div className="report-message-header">
+          <span className="report-message-role">ASSISTANT (ERROR)</span>
+        </div>
         <div className="report-message-content">
           <div className="report-error-block">
             <div className="report-error-type">{response.error.type}</div>
@@ -400,28 +444,33 @@ function ResponseBlock({
     );
   }
 
-  const contentArray = response.content || [];
-
   return (
-    <div className="report-message assistant">
-      <div className="report-message-header">
-        ASSISTANT
-        {response.stop_reason && (
-          <span className="report-stop-reason">[{response.stop_reason}]</span>
+    <div className={`report-message assistant ${expanded ? 'expanded' : 'collapsed'}`}>
+      <div className="report-message-header" onClick={onToggle}>
+        <span className="report-message-role">
+          ASSISTANT
+          {response.stop_reason && (
+            <span className="report-stop-reason">[{response.stop_reason}]</span>
+          )}
+        </span>
+        {!expanded && preview && (
+          <span className="report-message-preview">{preview}</span>
         )}
       </div>
-      <div className="report-message-content">
-        {contentArray.map((content, i) => (
-          <div key={i} className="report-content-block">
-            <ContentBlockRenderer
-              content={content}
-              blockKey={`resp-${requestIndex}-${i}`}
-              expandedBlocks={expandedBlocks}
-              onToggleBlock={onToggleBlock}
-            />
-          </div>
-        ))}
-      </div>
+      {expanded && (
+        <div className="report-message-content">
+          {contentArray.map((content, i) => (
+            <div key={i} className="report-content-block">
+              <ContentBlockRenderer
+                content={content}
+                blockKey={`resp-${requestIndex}-${i}`}
+                expandedBlocks={expandedBlocks}
+                onToggleBlock={onToggleBlock}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -440,6 +489,10 @@ function RequestReportCard({
   onToggleToolItem,
   toolSchemasExpanded,
   onToggleToolSchema,
+  messagesExpanded,
+  onToggleMessage,
+  responseExpanded,
+  onToggleResponse,
 }: {
   request: Request;
   requestIndex: number;
@@ -453,6 +506,10 @@ function RequestReportCard({
   onToggleToolItem: (index: number) => void;
   toolSchemasExpanded: Record<number, boolean>;
   onToggleToolSchema: (index: number) => void;
+  messagesExpanded: Record<number, boolean>;
+  onToggleMessage: (index: number) => void;
+  responseExpanded: boolean;
+  onToggleResponse: () => void;
 }) {
   const model = request.requestBody?.model || 'unknown';
   const messages = request.requestBody?.messages || [];
@@ -495,6 +552,8 @@ function RequestReportCard({
           key={index}
           message={message}
           messageIndex={index + requestIndex * 1000}
+          expanded={messagesExpanded[index] ?? true}
+          onToggle={() => onToggleMessage(index)}
           expandedBlocks={expandedBlocks}
           onToggleBlock={onToggleBlock}
         />
@@ -504,6 +563,8 @@ function RequestReportCard({
         <ResponseBlock
           response={request.response}
           requestIndex={requestIndex}
+          expanded={responseExpanded}
+          onToggle={onToggleResponse}
           expandedBlocks={expandedBlocks}
           onToggleBlock={onToggleBlock}
         />
@@ -516,121 +577,126 @@ function RequestReportCard({
   );
 }
 
-// Main session report view component
+// Main report view component
 export function SessionReportView() {
-  const selectedSessionId = useSelectedSessionId();
-  const getSessionRequests = useAppStore((state) => state.getSessionRequests);
+  const selectedRequest = useSelectedRequest();
 
   // Expanded state management
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>(
     {}
   );
-  const [systemExpanded, setSystemExpanded] = useState<Record<number, boolean>>(
-    {}
-  );
-  const [toolsExpanded, setToolsExpanded] = useState<Record<number, boolean>>(
-    {}
-  );
+  const [systemExpanded, setSystemExpanded] = useState(false);
+  const [toolsExpanded, setToolsExpanded] = useState(false);
   const [toolItemsExpanded, setToolItemsExpanded] = useState<
-    Record<string, boolean>
+    Record<number, boolean>
   >({});
   const [toolSchemasExpanded, setToolSchemasExpanded] = useState<
-    Record<string, boolean>
+    Record<number, boolean>
   >({});
+  const [messagesExpanded, setMessagesExpanded] = useState<
+    Record<number, boolean>
+  >({});
+  const [responseExpanded, setResponseExpanded] = useState(true);
 
   const toggleBlock = useCallback((key: string) => {
     setExpandedBlocks((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const toggleSystem = useCallback((reqIndex: number) => {
-    setSystemExpanded((prev) => ({ ...prev, [reqIndex]: !prev[reqIndex] }));
+  const toggleSystem = useCallback(() => {
+    setSystemExpanded((prev) => !prev);
   }, []);
 
-  const toggleTools = useCallback((reqIndex: number) => {
-    setToolsExpanded((prev) => ({ ...prev, [reqIndex]: !prev[reqIndex] }));
+  const toggleTools = useCallback(() => {
+    setToolsExpanded((prev) => !prev);
   }, []);
 
-  const toggleToolItem = useCallback((reqIndex: number, toolIndex: number) => {
-    const key = `${reqIndex}-${toolIndex}`;
-    setToolItemsExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleToolItem = useCallback((toolIndex: number) => {
+    setToolItemsExpanded((prev) => ({ ...prev, [toolIndex]: !prev[toolIndex] }));
   }, []);
 
-  const toggleToolSchema = useCallback(
-    (reqIndex: number, toolIndex: number) => {
-      const key = `${reqIndex}-${toolIndex}`;
-      setToolSchemasExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
-    },
-    []
-  );
+  const toggleToolSchema = useCallback((toolIndex: number) => {
+    setToolSchemasExpanded((prev) => ({ ...prev, [toolIndex]: !prev[toolIndex] }));
+  }, []);
+
+  const toggleMessage = useCallback((msgIndex: number) => {
+    setMessagesExpanded((prev) => ({ ...prev, [msgIndex]: !(prev[msgIndex] ?? true) }));
+  }, []);
+
+  const toggleResponse = useCallback(() => {
+    setResponseExpanded((prev) => !prev);
+  }, []);
 
   const expandAll = useCallback(() => {
-    if (!selectedSessionId) return;
-    const requests = getSessionRequests(selectedSessionId);
+    if (!selectedRequest) return;
 
     const newBlocks: Record<string, boolean> = {};
-    const newSystem: Record<number, boolean> = {};
-    const newTools: Record<number, boolean> = {};
-    const newToolItems: Record<string, boolean> = {};
-    const newToolSchemas: Record<string, boolean> = {};
+    const newToolItems: Record<number, boolean> = {};
+    const newToolSchemas: Record<number, boolean> = {};
+    const newMessages: Record<number, boolean> = {};
 
-    requests.forEach((request, reqIndex) => {
-      newSystem[reqIndex] = true;
-      newTools[reqIndex] = true;
-
-      request.requestBody?.tools?.forEach((_, toolIndex) => {
-        const key = `${reqIndex}-${toolIndex}`;
-        newToolItems[key] = true;
-        newToolSchemas[key] = true;
-      });
-
-      request.requestBody?.messages?.forEach((message, msgIndex) => {
-        const contentArray =
-          typeof message.content === 'string'
-            ? [{ type: 'text' as const, text: message.content }]
-            : message.content || [];
-        contentArray.forEach((content, i) => {
-          if (
-            content.type === 'thinking' ||
-            content.type === 'tool_use' ||
-            content.type === 'tool_result'
-          ) {
-            newBlocks[`msg-${msgIndex + reqIndex * 1000}-${i}`] = true;
-          }
-        });
-      });
-
-      if (request.response?.type === 'message') {
-        request.response.content?.forEach((content, i) => {
-          if (
-            content.type === 'thinking' ||
-            content.type === 'tool_use' ||
-            content.type === 'tool_result'
-          ) {
-            newBlocks[`resp-${reqIndex}-${i}`] = true;
-          }
-        });
-      }
+    selectedRequest.requestBody?.tools?.forEach((_, toolIndex) => {
+      newToolItems[toolIndex] = true;
+      newToolSchemas[toolIndex] = true;
     });
 
+    selectedRequest.requestBody?.messages?.forEach((message, msgIndex) => {
+      newMessages[msgIndex] = true;
+      const contentArray =
+        typeof message.content === 'string'
+          ? [{ type: 'text' as const, text: message.content }]
+          : message.content || [];
+      contentArray.forEach((content, i) => {
+        if (
+          content.type === 'thinking' ||
+          content.type === 'tool_use' ||
+          content.type === 'tool_result'
+        ) {
+          newBlocks[`msg-${msgIndex}-${i}`] = true;
+        }
+      });
+    });
+
+    if (selectedRequest.response?.type === 'message') {
+      selectedRequest.response.content?.forEach((content, i) => {
+        if (
+          content.type === 'thinking' ||
+          content.type === 'tool_use' ||
+          content.type === 'tool_result'
+        ) {
+          newBlocks[`resp-0-${i}`] = true;
+        }
+      });
+    }
+
     setExpandedBlocks(newBlocks);
-    setSystemExpanded(newSystem);
-    setToolsExpanded(newTools);
+    setSystemExpanded(true);
+    setToolsExpanded(true);
     setToolItemsExpanded(newToolItems);
     setToolSchemasExpanded(newToolSchemas);
-  }, [selectedSessionId, getSessionRequests]);
+    setMessagesExpanded(newMessages);
+    setResponseExpanded(true);
+  }, [selectedRequest]);
 
   const collapseAll = useCallback(() => {
     setExpandedBlocks({});
-    setSystemExpanded({});
-    setToolsExpanded({});
+    setSystemExpanded(false);
+    setToolsExpanded(false);
     setToolItemsExpanded({});
     setToolSchemasExpanded({});
+    setMessagesExpanded({});
+    setResponseExpanded(false);
   }, []);
 
-  // Reset all expanded states when session changes
+  // Reset expanded state when selected request changes
   useEffect(() => {
-    collapseAll();
-  }, [selectedSessionId, collapseAll]);
+    setExpandedBlocks({});
+    setSystemExpanded(false);
+    setToolsExpanded(false);
+    setToolItemsExpanded({});
+    setToolSchemasExpanded({});
+    setMessagesExpanded({});
+    setResponseExpanded(true);
+  }, [selectedRequest?.id]);
 
   // Listen to expand/collapse triggers from header
   const expandTrigger = useReportExpandTrigger();
@@ -652,56 +718,32 @@ export function SessionReportView() {
     prevCollapseTrigger.current = collapseTrigger;
   }, [collapseTrigger, collapseAll]);
 
-  if (!selectedSessionId) {
-    return (
-      <div className="report-empty">Select a session to view the report</div>
-    );
+  if (!selectedRequest) {
+    return <div className="report-empty">Select a request to view details</div>;
   }
-
-  const sessionRequests = getSessionRequests(selectedSessionId);
-
-  if (sessionRequests.length === 0) {
-    return <div className="report-empty">No requests in this session</div>;
-  }
-
-  // Sort by timestamp ascending (oldest first)
-  const sortedRequests = [...sessionRequests].sort(
-    (a, b) => a.timestamp - b.timestamp
-  );
 
   return (
     <div className="report-container">
       <ScrollArea className="h-full">
         <div className="report-content">
-          {sortedRequests.map((request, reqIndex) => (
-            <RequestReportCard
-              key={request.id}
-              request={request}
-              requestIndex={reqIndex}
-              expandedBlocks={expandedBlocks}
-              onToggleBlock={toggleBlock}
-              systemExpanded={systemExpanded[reqIndex] ?? false}
-              onToggleSystem={() => toggleSystem(reqIndex)}
-              toolsExpanded={toolsExpanded[reqIndex] ?? false}
-              onToggleTools={() => toggleTools(reqIndex)}
-              toolItemsExpanded={Object.fromEntries(
-                Object.entries(toolItemsExpanded)
-                  .filter(([k]) => k.startsWith(`${reqIndex}-`))
-                  .map(([k, v]) => [parseInt(k.split('-')[1]), v])
-              )}
-              onToggleToolItem={(toolIndex) =>
-                toggleToolItem(reqIndex, toolIndex)
-              }
-              toolSchemasExpanded={Object.fromEntries(
-                Object.entries(toolSchemasExpanded)
-                  .filter(([k]) => k.startsWith(`${reqIndex}-`))
-                  .map(([k, v]) => [parseInt(k.split('-')[1]), v])
-              )}
-              onToggleToolSchema={(toolIndex) =>
-                toggleToolSchema(reqIndex, toolIndex)
-              }
-            />
-          ))}
+          <RequestReportCard
+            request={selectedRequest}
+            requestIndex={0}
+            expandedBlocks={expandedBlocks}
+            onToggleBlock={toggleBlock}
+            systemExpanded={systemExpanded}
+            onToggleSystem={toggleSystem}
+            toolsExpanded={toolsExpanded}
+            onToggleTools={toggleTools}
+            toolItemsExpanded={toolItemsExpanded}
+            onToggleToolItem={toggleToolItem}
+            toolSchemasExpanded={toolSchemasExpanded}
+            onToggleToolSchema={toggleToolSchema}
+            messagesExpanded={messagesExpanded}
+            onToggleMessage={toggleMessage}
+            responseExpanded={responseExpanded}
+            onToggleResponse={toggleResponse}
+          />
         </div>
       </ScrollArea>
     </div>

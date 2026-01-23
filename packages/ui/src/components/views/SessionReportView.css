@@ -92,6 +92,39 @@
   text-transform: uppercase;
   font-size: 0.85em;
   letter-spacing: 0.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.report-message-header::before {
+  content: '▶';
+  font-size: 0.7em;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.report-message.expanded .report-message-header::before {
+  transform: rotate(90deg);
+}
+
+.report-message-role {
+  flex-shrink: 0;
+}
+
+.report-message-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: normal;
+  text-transform: none;
+  color: var(--report-text-secondary);
+  font-size: 0.95em;
+  letter-spacing: normal;
 }
 
 .report-message.user .report-message-header {

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type {
-  Session,
   Request,
   ConnectionStatus,
   WSMessage,
@@ -28,11 +27,6 @@ interface AppState {
   triggerExpandAll: () => void;
   triggerCollapseAll: () => void;
 
-  // Sessions
-  sessions: Map<string, Session>;
-  selectedSessionId: string | null;
-  selectSession: (sessionId: string | null) => void;
-
   // Requests
   requests: Map<string, Request>;
   selectedRequestId: string | null;
@@ -43,8 +37,8 @@ interface AppState {
   clearAll: () => void;
 
   // Computed getters
-  getSessionRequests: (sessionId: string) => Request[];
   getSelectedRequest: () => Request | null;
+  getAllRequests: () => Request[];
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -67,11 +61,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   triggerExpandAll: () => set((state) => ({ reportExpandTrigger: state.reportExpandTrigger + 1 })),
   triggerCollapseAll: () => set((state) => ({ reportCollapseTrigger: state.reportCollapseTrigger + 1 })),
 
-  // Sessions
-  sessions: new Map(),
-  selectedSessionId: null,
-  selectSession: (sessionId) => set({ selectedSessionId: sessionId, selectedRequestId: null }),
-
   // Requests
   requests: new Map(),
   selectedRequestId: null,
@@ -82,27 +71,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
 
     switch (message.type) {
-      case 'session_start': {
-        const newSessions = new Map(state.sessions);
-        newSessions.set(message.sessionId, {
-          id: message.sessionId,
-          startTime: message.timestamp,
-          requestCount: 0,
-        });
-        set({ sessions: newSessions });
-
-        // Auto-select first session
-        if (!state.selectedSessionId) {
-          set({ selectedSessionId: message.sessionId });
-        }
-        break;
-      }
-
       case 'request_start': {
         const newRequests = new Map(state.requests);
         newRequests.set(message.requestId, {
           id: message.requestId,
-          sessionId: message.sessionId,
           timestamp: message.timestamp,
           method: message.method,
           url: message.url,
@@ -112,18 +84,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         set({ requests: newRequests });
 
-        // Update session request count
-        const newSessions = new Map(state.sessions);
-        const session = newSessions.get(message.sessionId);
-        if (session) {
-          session.requestCount++;
-          set({ sessions: newSessions });
-        }
-
-        // Auto-select the request if this is the selected session
-        if (state.selectedSessionId === message.sessionId) {
-          set({ selectedRequestId: message.requestId });
-        }
+        // Auto-select latest request
+        set({ selectedRequestId: message.requestId });
         break;
       }
 
@@ -187,29 +149,25 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   clearAll: () => {
     set({
-      sessions: new Map(),
       requests: new Map(),
-      selectedSessionId: null,
       selectedRequestId: null,
     });
   },
 
   // Computed getters
-  getSessionRequests: (sessionId) => {
-    const state = get();
-    const requests: Request[] = [];
-    for (const request of state.requests.values()) {
-      if (request.sessionId === sessionId) {
-        requests.push(request);
-      }
-    }
-    return requests.sort((a, b) => b.timestamp - a.timestamp);
-  },
-
   getSelectedRequest: () => {
     const state = get();
     if (!state.selectedRequestId) return null;
     return state.requests.get(state.selectedRequestId) || null;
+  },
+
+  getAllRequests: () => {
+    const state = get();
+    const requests: Request[] = [];
+    for (const request of state.requests.values()) {
+      requests.push(request);
+    }
+    return requests.sort((a, b) => b.timestamp - a.timestamp);
   },
 }));
 
@@ -219,8 +177,6 @@ export const useViewMode = () => useAppStore((state) => state.viewMode);
 export const useSidebarVisible = () => useAppStore((state) => state.sidebarVisible);
 export const useReportExpandTrigger = () => useAppStore((state) => state.reportExpandTrigger);
 export const useReportCollapseTrigger = () => useAppStore((state) => state.reportCollapseTrigger);
-export const useSessions = () => useAppStore((state) => state.sessions);
-export const useSelectedSessionId = () => useAppStore((state) => state.selectedSessionId);
 export const useSelectedRequestId = () => useAppStore((state) => state.selectedRequestId);
 export const useRequests = () => useAppStore((state) => state.requests);
 export const useSelectedRequest = () => {

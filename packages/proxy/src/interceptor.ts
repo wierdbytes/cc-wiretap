@@ -21,7 +21,6 @@ export class ClaudeInterceptor {
   private activeRequests: Map<string, {
     request: InterceptedRequest;
     parser: SSEStreamParser;
-    sessionId: string;
   }> = new Map();
 
   constructor(wsServer: WiretapWebSocketServer) {
@@ -45,7 +44,6 @@ export class ClaudeInterceptor {
     }
 
     const requestId = randomUUID();
-    const sessionId = this.extractSessionId(request) || 'default';
     const timestamp = Date.now();
 
     // Parse request body
@@ -63,7 +61,6 @@ export class ClaudeInterceptor {
     // Create intercepted request
     const intercepted: InterceptedRequest = {
       id: requestId,
-      sessionId,
       timestamp,
       method: request.method,
       url: request.url,
@@ -76,15 +73,13 @@ export class ClaudeInterceptor {
     this.activeRequests.set(requestId, {
       request: intercepted,
       parser: new SSEStreamParser(),
-      sessionId,
     });
 
-    // Add to session and broadcast
-    this.wsServer.addRequest(sessionId, intercepted);
+    // Add to store and broadcast
+    this.wsServer.addRequest(intercepted);
 
     this.wsServer.broadcast({
       type: 'request_start',
-      sessionId,
       requestId,
       timestamp,
       method: request.method,
@@ -95,7 +90,6 @@ export class ClaudeInterceptor {
     if (requestBody) {
       this.wsServer.broadcast({
         type: 'request_body',
-        sessionId,
         requestId,
         body: requestBody,
       });
@@ -108,7 +102,7 @@ export class ClaudeInterceptor {
 
       console.log(
         chalk.cyan('→'),
-        chalk.white(`[${sessionId.slice(0, 8)}]`),
+        chalk.white(`[${requestId.slice(0, 8)}]`),
         chalk.green(model),
         `${messageCount} messages`,
         hasTools ? chalk.yellow(`+ ${requestBody.tools!.length} tools`) : '',
@@ -136,7 +130,6 @@ export class ClaudeInterceptor {
 
     this.wsServer.broadcast({
       type: 'response_start',
-      sessionId: active.sessionId,
       requestId,
       timestamp,
       statusCode,
@@ -157,7 +150,6 @@ export class ClaudeInterceptor {
       active.request.sseEvents.push(event);
       this.wsServer.broadcast({
         type: 'response_chunk',
-        sessionId: active.sessionId,
         requestId,
         event,
       });
@@ -181,7 +173,6 @@ export class ClaudeInterceptor {
       active.request.sseEvents.push(event);
       this.wsServer.broadcast({
         type: 'response_chunk',
-        sessionId: active.sessionId,
         requestId,
         event,
       });
@@ -198,7 +189,6 @@ export class ClaudeInterceptor {
     if (response) {
       this.wsServer.broadcast({
         type: 'response_complete',
-        sessionId: active.sessionId,
         requestId,
         timestamp,
         response,
@@ -209,7 +199,7 @@ export class ClaudeInterceptor {
       console.log(); // New line after streaming dots
       console.log(
         chalk.green('✓'),
-        chalk.white(`[${active.sessionId.slice(0, 8)}]`),
+        chalk.white(`[${requestId.slice(0, 8)}]`),
         `${response.usage.input_tokens} in / ${response.usage.output_tokens} out`,
         chalk.gray(`(${durationMs}ms)`),
         response.stop_reason === 'tool_use' ? chalk.yellow('→ tool_use') : ''
@@ -230,7 +220,6 @@ export class ClaudeInterceptor {
 
     this.wsServer.broadcast({
       type: 'error',
-      sessionId: active.sessionId,
       requestId,
       error: error.message,
       timestamp: Date.now(),
@@ -238,7 +227,7 @@ export class ClaudeInterceptor {
 
     console.log(
       chalk.red('✗'),
-      chalk.white(`[${active.sessionId.slice(0, 8)}]`),
+      chalk.white(`[${requestId.slice(0, 8)}]`),
       error.message
     );
 
@@ -266,7 +255,6 @@ export class ClaudeInterceptor {
 
         this.wsServer.broadcast({
           type: 'response_complete',
-          sessionId: active.sessionId,
           requestId,
           timestamp,
           response: claudeResponse,
@@ -276,7 +264,7 @@ export class ClaudeInterceptor {
         if (claudeResponse.type === 'message') {
           console.log(
             chalk.green('✓'),
-            chalk.white(`[${active.sessionId.slice(0, 8)}]`),
+            chalk.white(`[${requestId.slice(0, 8)}]`),
             `${claudeResponse.usage.input_tokens} in / ${claudeResponse.usage.output_tokens} out`,
             chalk.gray(`(${durationMs}ms)`),
             claudeResponse.stop_reason === 'tool_use' ? chalk.yellow('→ tool_use') : ''
@@ -284,7 +272,7 @@ export class ClaudeInterceptor {
         } else if (claudeResponse.type === 'error') {
           console.log(
             chalk.yellow('⚠'),
-            chalk.white(`[${active.sessionId.slice(0, 8)}]`),
+            chalk.white(`[${requestId.slice(0, 8)}]`),
             chalk.red(claudeResponse.error.message),
             chalk.gray(`(${durationMs}ms)`)
           );
@@ -295,24 +283,6 @@ export class ClaudeInterceptor {
     }
 
     this.activeRequests.delete(requestId);
-  }
-
-  private extractSessionId(request: CompletedRequest): string {
-    // Try to extract session ID from headers or generate one
-    const headers = request.headers;
-
-    // Check common session header patterns
-    const sessionHeader =
-      headers['x-session-id'] ||
-      headers['x-request-id'] ||
-      headers['x-correlation-id'];
-
-    if (sessionHeader) {
-      return Array.isArray(sessionHeader) ? sessionHeader[0] : sessionHeader;
-    }
-
-    // Use a hash of certain request properties for consistent session grouping
-    return randomUUID();
   }
 
   private headersToRecord(headers: Record<string, string | string[] | undefined>): Record<string, string> {

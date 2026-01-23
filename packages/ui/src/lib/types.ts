@@ -195,7 +195,6 @@ export interface ErrorEvent {
 // WebSocket Message Types
 
 export type WSMessage =
-  | WSSessionStart
   | WSRequestStart
   | WSRequestBody
   | WSResponseStart
@@ -203,15 +202,8 @@ export type WSMessage =
   | WSResponseComplete
   | WSError;
 
-export interface WSSessionStart {
-  type: 'session_start';
-  sessionId: string;
-  timestamp: number;
-}
-
 export interface WSRequestStart {
   type: 'request_start';
-  sessionId: string;
   requestId: string;
   timestamp: number;
   method: string;
@@ -221,14 +213,12 @@ export interface WSRequestStart {
 
 export interface WSRequestBody {
   type: 'request_body';
-  sessionId: string;
   requestId: string;
   body: ClaudeRequest;
 }
 
 export interface WSResponseStart {
   type: 'response_start';
-  sessionId: string;
   requestId: string;
   timestamp: number;
   statusCode: number;
@@ -237,14 +227,12 @@ export interface WSResponseStart {
 
 export interface WSResponseChunk {
   type: 'response_chunk';
-  sessionId: string;
   requestId: string;
   event: SSEEvent;
 }
 
 export interface WSResponseComplete {
   type: 'response_complete';
-  sessionId: string;
   requestId: string;
   timestamp: number;
   response: ClaudeResponse;
@@ -253,7 +241,6 @@ export interface WSResponseComplete {
 
 export interface WSError {
   type: 'error';
-  sessionId: string;
   requestId?: string;
   error: string;
   timestamp: number;
@@ -261,15 +248,8 @@ export interface WSError {
 
 // UI State Types
 
-export interface Session {
-  id: string;
-  startTime: number;
-  requestCount: number;
-}
-
 export interface Request {
   id: string;
-  sessionId: string;
   timestamp: number;
   method: string;
   url: string;

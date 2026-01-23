@@ -60,8 +60,8 @@ function ViewModeToggle() {
 
 export function Header() {
   const connectionStatus = useConnectionStatus();
-  const sidebarVisible = useSidebarVisible();
   const viewMode = useViewMode();
+  const sidebarVisible = useSidebarVisible();
   const clearAll = useAppStore((state) => state.clearAll);
   const toggleSidebar = useAppStore((state) => state.toggleSidebar);
   const triggerExpandAll = useAppStore((state) => state.triggerExpandAll);
