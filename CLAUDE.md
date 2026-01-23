@@ -113,6 +113,22 @@ React frontend dashboard.
   - Usage - Token counts and settings
   - Raw JSON - Complete request/response data
 
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `S` | Toggle sidebar |
+| `F` | Fold all blocks |
+| `E` | Expand all blocks |
+| `Space` | Select last request |
+| `1` | Toggle system prompt |
+| `2` | Toggle tools |
+| `3` | Toggle messages |
+| `X` | Clear all requests |
+| `?` | Show hotkeys help |
+
+Implementation: `useHotkeys` hook uses `event.code` for layout-independent keys. Hotkeys are disabled when dialogs are open.
+
 ### Tech Stack
 
 - React 19

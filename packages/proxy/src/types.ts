@@ -186,7 +186,7 @@ export interface ErrorEvent {
   };
 }
 
-// WebSocket Message Types (Proxy -> UI)
+// WebSocket Message Types (Proxy <-> UI)
 
 export type WSMessage =
   | WSRequestStart
@@ -194,7 +194,12 @@ export type WSMessage =
   | WSResponseStart
   | WSResponseChunk
   | WSResponseComplete
-  | WSError;
+  | WSError
+  | WSClearAll;
+
+export interface WSClearAll {
+  type: 'clear_all';
+}
 
 export interface WSRequestStart {
   type: 'request_start';

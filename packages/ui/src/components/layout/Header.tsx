@@ -1,7 +1,11 @@
-import { Radio, Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { useCallback } from 'react';
+import { Radio, Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useConnectionStatus, useSidebarVisible, useAppStore } from '@/stores/appStore';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { HotkeysDialog } from '@/components/ui/hotkeys-dialog';
+import { useConnectionStatus, useSidebarVisible, useShowClearDialog, useShowHotkeysDialog, useAppStore } from '@/stores/appStore';
+import { sendWebSocketMessage } from '@/hooks/useWebSocket';
 import type { ConnectionStatus } from '@/lib/types';
 
 const statusConfig: Record<ConnectionStatus, { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' }> = {
@@ -14,11 +18,35 @@ const statusConfig: Record<ConnectionStatus, { label: string; variant: 'success'
 export function Header() {
   const connectionStatus = useConnectionStatus();
   const sidebarVisible = useSidebarVisible();
-  const clearAll = useAppStore((state) => state.clearAll);
+  const showClearDialog = useShowClearDialog();
+  const showHotkeysDialog = useShowHotkeysDialog();
+  const setShowClearDialog = useAppStore((state) => state.setShowClearDialog);
+  const setShowHotkeysDialog = useAppStore((state) => state.setShowHotkeysDialog);
   const toggleSidebar = useAppStore((state) => state.toggleSidebar);
   const triggerExpandAll = useAppStore((state) => state.triggerExpandAll);
   const triggerCollapseAll = useAppStore((state) => state.triggerCollapseAll);
   const { label, variant } = statusConfig[connectionStatus];
+
+  const handleClearConfirm = useCallback(() => {
+    sendWebSocketMessage({ type: 'clear_all' });
+    setShowClearDialog(false);
+  }, [setShowClearDialog]);
+
+  const handleClearCancel = useCallback(() => {
+    setShowClearDialog(false);
+  }, [setShowClearDialog]);
+
+  const handleClearClick = useCallback(() => {
+    setShowClearDialog(true);
+  }, [setShowClearDialog]);
+
+  const handleHelpClick = useCallback(() => {
+    setShowHotkeysDialog(true);
+  }, [setShowHotkeysDialog]);
+
+  const handleHelpClose = useCallback(() => {
+    setShowHotkeysDialog(false);
+  }, [setShowHotkeysDialog]);
 
   return (
     <header className="h-14 border-b border-border bg-card px-4 flex items-center justify-between">
@@ -64,13 +92,37 @@ export function Header() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={clearAll}
+          onClick={handleClearClick}
           className="h-7 w-7"
-          title="Clear all"
+          title="Clear all (X)"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleHelpClick}
+          className="h-7 w-7"
+          title="Keyboard shortcuts (?)"
+        >
+          <Keyboard className="h-3.5 w-3.5" />
+        </Button>
       </div>
+
+      <HotkeysDialog
+        open={showHotkeysDialog}
+        onClose={handleHelpClose}
+      />
+
+      <ConfirmDialog
+        open={showClearDialog}
+        title="Clear All Requests"
+        message="Are you sure you want to clear all intercepted requests? This action cannot be undone."
+        confirmLabel="Clear All"
+        cancelLabel="Cancel"
+        onConfirm={handleClearConfirm}
+        onCancel={handleClearCancel}
+      />
     </header>
   );
 }

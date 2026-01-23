@@ -5,6 +5,15 @@ import type { WSMessage } from '@/lib/types';
 const WS_URL = 'ws://localhost:8081';
 const RECONNECT_DELAY = 3000;
 
+// Global reference to WebSocket for sending messages
+let globalWsRef: WebSocket | null = null;
+
+export function sendWebSocketMessage(message: { type: string; [key: string]: unknown }) {
+  if (globalWsRef?.readyState === WebSocket.OPEN) {
+    globalWsRef.send(JSON.stringify(message));
+  }
+}
+
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -22,6 +31,7 @@ export function useWebSocket() {
       try {
         const ws = new WebSocket(WS_URL);
         wsRef.current = ws;
+        globalWsRef = ws;
 
         ws.onopen = () => {
           if (isUnmountedRef.current) return;
@@ -78,6 +88,7 @@ export function useWebSocket() {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
+        globalWsRef = null;
       }
     };
   }, []);

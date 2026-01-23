@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSelectedRequest, useReportExpandTrigger, useReportCollapseTrigger, useSystemPromptToggleTrigger, useToolsToggleTrigger } from '@/stores/appStore';
+import { useSelectedRequest, useReportExpandTrigger, useReportCollapseTrigger, useSystemPromptToggleTrigger, useToolsToggleTrigger, useMessagesToggleTrigger } from '@/stores/appStore';
 import { formatDuration, extractModelName } from '@/lib/utils';
 import { JsonView, defaultStyles } from 'react-json-view-lite';
 import type {
@@ -744,6 +744,34 @@ export function SessionReportView() {
     }
     prevToolsToggleTrigger.current = toolsToggleTrigger;
   }, [toolsToggleTrigger, toggleTools]);
+
+  const messagesToggleTrigger = useMessagesToggleTrigger();
+  const prevMessagesToggleTrigger = useRef(messagesToggleTrigger);
+
+  const toggleAllMessages = useCallback(() => {
+    if (!selectedRequest) return;
+    const messages = selectedRequest.requestBody?.messages || [];
+
+    // Check if any message is expanded (including response)
+    const anyExpanded = messages.some((_, idx) => messagesExpanded[idx] ?? true) || responseExpanded;
+
+    // Toggle all to opposite state
+    const newState = !anyExpanded;
+    const newMessages: Record<number, boolean> = {};
+    messages.forEach((_, idx) => {
+      newMessages[idx] = newState;
+    });
+
+    setMessagesExpanded(newMessages);
+    setResponseExpanded(newState);
+  }, [selectedRequest, messagesExpanded, responseExpanded]);
+
+  useEffect(() => {
+    if (messagesToggleTrigger > prevMessagesToggleTrigger.current) {
+      toggleAllMessages();
+    }
+    prevMessagesToggleTrigger.current = messagesToggleTrigger;
+  }, [messagesToggleTrigger, toggleAllMessages]);
 
   if (!selectedRequest) {
     return <div className="report-empty">Select a request to view details</div>;

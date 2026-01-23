@@ -28,6 +28,19 @@ export class WiretapWebSocketServer {
       // Send current state to new client
       this.sendCurrentState(ws);
 
+      ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.type === 'clear_all') {
+            console.log(chalk.yellow('⟲'), 'Clearing all requests');
+            this.requests.clear();
+            this.broadcast({ type: 'clear_all' });
+          }
+        } catch (error) {
+          console.error(chalk.red('✗'), `Failed to parse client message: ${error}`);
+        }
+      });
+
       ws.on('close', () => {
         console.log(chalk.gray('○'), `UI client disconnected from ${clientIp}`);
         this.clients.delete(ws);

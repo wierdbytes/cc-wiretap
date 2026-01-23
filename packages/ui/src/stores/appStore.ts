@@ -10,6 +10,14 @@ interface AppState {
   connectionStatus: ConnectionStatus;
   setConnectionStatus: (status: ConnectionStatus) => void;
 
+  // Clear confirmation dialog
+  showClearDialog: boolean;
+  setShowClearDialog: (show: boolean) => void;
+
+  // Hotkeys help dialog
+  showHotkeysDialog: boolean;
+  setShowHotkeysDialog: (show: boolean) => void;
+
   // Sidebar
   sidebarVisible: boolean;
   setSidebarVisible: (visible: boolean) => void;
@@ -20,10 +28,12 @@ interface AppState {
   reportCollapseTrigger: number;
   systemPromptToggleTrigger: number;
   toolsToggleTrigger: number;
+  messagesToggleTrigger: number;
   triggerExpandAll: () => void;
   triggerCollapseAll: () => void;
   triggerToggleSystemPrompt: () => void;
   triggerToggleTools: () => void;
+  triggerToggleMessages: () => void;
 
   // Requests
   requests: Map<string, Request>;
@@ -45,6 +55,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionStatus: 'disconnected',
   setConnectionStatus: (status) => set({ connectionStatus: status }),
 
+  // Clear confirmation dialog
+  showClearDialog: false,
+  setShowClearDialog: (show) => set({ showClearDialog: show }),
+
+  // Hotkeys help dialog
+  showHotkeysDialog: false,
+  setShowHotkeysDialog: (show) => set({ showHotkeysDialog: show }),
+
   // Sidebar
   sidebarVisible: true,
   setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
@@ -55,10 +73,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   reportCollapseTrigger: 0,
   systemPromptToggleTrigger: 0,
   toolsToggleTrigger: 0,
+  messagesToggleTrigger: 0,
   triggerExpandAll: () => set((state) => ({ reportExpandTrigger: state.reportExpandTrigger + 1 })),
   triggerCollapseAll: () => set((state) => ({ reportCollapseTrigger: state.reportCollapseTrigger + 1 })),
   triggerToggleSystemPrompt: () => set((state) => ({ systemPromptToggleTrigger: state.systemPromptToggleTrigger + 1 })),
   triggerToggleTools: () => set((state) => ({ toolsToggleTrigger: state.toolsToggleTrigger + 1 })),
+  triggerToggleMessages: () => set((state) => ({ messagesToggleTrigger: state.messagesToggleTrigger + 1 })),
 
   // Requests
   requests: new Map(),
@@ -151,6 +171,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         break;
       }
+
+      case 'clear_all': {
+        set({
+          requests: new Map(),
+          selectedRequestId: null,
+        });
+        break;
+      }
     }
   },
 
@@ -180,11 +208,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 // Selectors for performance optimization
 export const useConnectionStatus = () => useAppStore((state) => state.connectionStatus);
+export const useShowClearDialog = () => useAppStore((state) => state.showClearDialog);
+export const useShowHotkeysDialog = () => useAppStore((state) => state.showHotkeysDialog);
 export const useSidebarVisible = () => useAppStore((state) => state.sidebarVisible);
 export const useReportExpandTrigger = () => useAppStore((state) => state.reportExpandTrigger);
 export const useReportCollapseTrigger = () => useAppStore((state) => state.reportCollapseTrigger);
 export const useSystemPromptToggleTrigger = () => useAppStore((state) => state.systemPromptToggleTrigger);
 export const useToolsToggleTrigger = () => useAppStore((state) => state.toolsToggleTrigger);
+export const useMessagesToggleTrigger = () => useAppStore((state) => state.messagesToggleTrigger);
 export const useSelectedRequestId = () => useAppStore((state) => state.selectedRequestId);
 export const useRequests = () => useAppStore((state) => state.requests);
 export const useSelectedRequest = () => {
