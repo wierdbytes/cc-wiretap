@@ -30,6 +30,9 @@ importers:
         specifier: ^8.16.0
         version: 8.19.0
     devDependencies:
+      '@cc-wiretap/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.30

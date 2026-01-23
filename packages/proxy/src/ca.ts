@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile, access, constants } from 'fs/promises';
 import { generateCACertificate } from 'mockttp';
 import chalk from 'chalk';
 
-const CA_DIR = join(homedir(), '.claude-wiretap');
+const CA_DIR = join(homedir(), '.cc-wiretap');
 const CA_CERT_PATH = join(CA_DIR, 'ca.pem');
 const CA_KEY_PATH = join(CA_DIR, 'ca-key.pem');
 
@@ -55,8 +55,8 @@ export async function loadOrGenerateCA(): Promise<CAConfig> {
   console.log(chalk.yellow('⚙'), 'Generating new CA certificate...');
 
   const { cert, key } = await generateCACertificate({
-    commonName: 'Claude Wiretap CA',
-    organizationName: 'Claude Wiretap',
+    commonName: 'CC Wiretap CA',
+    organizationName: 'CC Wiretap',
   });
 
   await writeFile(CA_CERT_PATH, cert);
@@ -70,7 +70,7 @@ export async function loadOrGenerateCA(): Promise<CAConfig> {
   console.log(chalk.white(`  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "${CA_CERT_PATH}"`));
   console.log();
   console.log(chalk.gray('  # Linux (Debian/Ubuntu):'));
-  console.log(chalk.white(`  sudo cp "${CA_CERT_PATH}" /usr/local/share/ca-certificates/claude-wiretap.crt`));
+  console.log(chalk.white(`  sudo cp "${CA_CERT_PATH}" /usr/local/share/ca-certificates/cc-wiretap.crt`));
   console.log(chalk.white('  sudo update-ca-certificates'));
   console.log();
   console.log(chalk.gray('  # For Node.js/Claude Code, use:'));

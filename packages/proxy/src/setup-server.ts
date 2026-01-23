@@ -8,7 +8,7 @@ function generateSetupScript(proxyPort: number): string {
   const caPath = getCAPath();
 
   return `#!/bin/bash
-# Claude Wiretap - Terminal Setup Script
+# CC Wiretap - Terminal Setup Script
 # This script configures your terminal session to route traffic through the proxy
 
 # Proxy settings (for most HTTP clients)
@@ -47,7 +47,7 @@ export WIRETAP_ACTIVE="1"
 # export PS1="[wiretap] $PS1"
 
 echo ""
-echo "  ✓ Claude Wiretap proxy configured for this terminal"
+echo "  ✓ CC Wiretap proxy configured for this terminal"
 echo ""
 echo "  Proxy:  http://localhost:${proxyPort}"
 echo "  CA:     ${caPath}"
@@ -71,7 +71,7 @@ export -f unset-wiretap 2>/dev/null || true
 function generateFishScript(proxyPort: number): string {
   const caPath = getCAPath();
 
-  return `# Claude Wiretap - Fish Shell Setup Script
+  return `# CC Wiretap - Fish Shell Setup Script
 
 set -gx HTTP_PROXY "http://localhost:${proxyPort}"
 set -gx HTTPS_PROXY "http://localhost:${proxyPort}"
@@ -88,7 +88,7 @@ set -gx no_proxy "localhost,127.0.0.1,::1"
 set -gx WIRETAP_ACTIVE "1"
 
 echo ""
-echo "  ✓ Claude Wiretap proxy configured for this terminal"
+echo "  ✓ CC Wiretap proxy configured for this terminal"
 echo ""
 echo "  Proxy:  http://localhost:${proxyPort}"
 echo "  CA:     ${caPath}"

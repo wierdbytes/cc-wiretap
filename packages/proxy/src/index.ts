@@ -4,13 +4,14 @@ import { loadOrGenerateCA, getCAPath } from './ca.js';
 import { createProxy } from './proxy.js';
 import { WiretapWebSocketServer } from './websocket.js';
 import { createSetupServer, getSetupCommand } from './setup-server.js';
+import { createUIServer } from './ui-server.js';
 
 const VERSION = '1.0.0';
 
 const BANNER = `
 ${chalk.cyan('╔═══════════════════════════════════════════════════════════╗')}
 ${chalk.cyan('║')}                                                           ${chalk.cyan('║')}
-${chalk.cyan('║')}   ${chalk.bold.white('Claude Wiretap')} ${chalk.gray('v' + VERSION)}                                 ${chalk.cyan('║')}
+${chalk.cyan('║')}   ${chalk.bold.white('CC Wiretap')} ${chalk.gray('v' + VERSION)}                                     ${chalk.cyan('║')}
 ${chalk.cyan('║')}   ${chalk.gray('HTTP/HTTPS proxy for Claude Code traffic inspection')}    ${chalk.cyan('║')}
 ${chalk.cyan('║')}                                                           ${chalk.cyan('║')}
 ${chalk.cyan('╚═══════════════════════════════════════════════════════════╝')}
@@ -19,6 +20,7 @@ ${chalk.cyan('╚═════════════════════
 interface CLIOptions {
   port: string;
   wsPort: string;
+  uiPort: string;
   quiet: boolean;
 }
 
@@ -26,11 +28,12 @@ async function main() {
   const program = new Command();
 
   program
-    .name('claude-wiretap')
+    .name('cc-wiretap')
     .description('HTTP/HTTPS proxy for intercepting and visualizing Claude Code traffic')
     .version(VERSION)
     .option('-p, --port <port>', 'Proxy server port', '8080')
     .option('-w, --ws-port <port>', 'WebSocket server port for UI', '8081')
+    .option('-u, --ui-port <port>', 'UI dashboard server port', '3000')
     .option('-q, --quiet', 'Suppress banner and verbose output', false)
     .action(async (options: CLIOptions) => {
       if (!options.quiet) {
@@ -39,6 +42,7 @@ async function main() {
 
       const proxyPort = parseInt(options.port, 10);
       const wsPort = parseInt(options.wsPort, 10);
+      const uiPort = parseInt(options.uiPort, 10);
 
       try {
         // Load or generate CA certificate
@@ -58,6 +62,9 @@ async function main() {
         // Start setup server (for terminal eval command)
         const setupServer = createSetupServer(proxyPort);
 
+        // Start UI server (serves bundled dashboard)
+        const uiServer = createUIServer({ port: uiPort });
+
         console.log();
         console.log(chalk.white('Ready to intercept Claude API traffic.'));
         console.log();
@@ -73,7 +80,7 @@ async function main() {
         console.log(chalk.gray(`  HTTPS_PROXY=http://localhost:${proxyPort} \\`));
         console.log(chalk.gray('  claude'));
         console.log();
-        console.log(chalk.gray('UI:'), chalk.cyan(`http://localhost:3000`));
+        console.log(chalk.gray('UI:'), chalk.cyan(`http://localhost:${uiPort}`));
         console.log();
         console.log(chalk.gray('─'.repeat(60)));
         console.log();
@@ -85,6 +92,7 @@ async function main() {
           await proxy.stop();
           await wsServer.close();
           setupServer.close();
+          uiServer?.close();
           process.exit(0);
         };
 
@@ -111,4 +119,5 @@ export { WiretapWebSocketServer } from './websocket.js';
 export { ClaudeInterceptor, CLAUDE_API_HOSTS } from './interceptor.js';
 export { SSEStreamParser, parseSSEChunk, reconstructResponseFromEvents } from './parser.js';
 export { createSetupServer, getSetupCommand } from './setup-server.js';
+export { createUIServer } from './ui-server.js';
 export * from './types.js';

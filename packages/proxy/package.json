@@ -1,19 +1,40 @@
 {
-  "name": "@claude-wiretap/proxy",
+  "name": "cc-wiretap",
   "version": "1.0.0",
-  "description": "HTTP/HTTPS proxy for intercepting Claude Code traffic",
+  "description": "HTTP/HTTPS proxy for intercepting and visualizing Claude Code traffic",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "claude-wiretap": "./dist/index.js"
+    "cc-wiretap": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup",
+    "build": "tsup && pnpm run build:bundle-ui",
+    "build:bundle-ui": "mkdir -p ./dist/ui && cp -r ../ui/dist/* ./dist/ui/ 2>/dev/null || echo 'UI not built yet'",
     "start": "node dist/index.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm run build"
   },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "proxy",
+    "wiretap",
+    "debugging",
+    "api",
+    "anthropic",
+    "cli",
+    "inspector"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wierdbytes/cc-wiretap.git"
+  },
+  "license": "MIT",
   "dependencies": {
     "mockttp": "^3.10.0",
     "ws": "^8.16.0",
@@ -21,6 +42,7 @@
     "chalk": "^5.3.0"
   },
   "devDependencies": {
+    "@cc-wiretap/ui": "workspace:*",
     "@types/node": "^20.0.0",
     "@types/ws": "^8.5.0",
     "tsup": "^8.0.0",
