@@ -7,6 +7,7 @@ import type {
   ClaudeMessage,
   ClaudeContent,
   TextContent,
+  ImageContent,
   ToolUseContent,
   ToolResultContent,
   ThinkingContent,
@@ -294,6 +295,16 @@ function ContentBlockRenderer({
   if (content.type === 'text') {
     const textContent = content as TextContent;
     return <div className="report-text-block">{textContent.text}</div>;
+  }
+
+  if (content.type === 'image') {
+    const imageContent = content as ImageContent;
+    const src = `data:${imageContent.source.media_type};base64,${imageContent.source.data}`;
+    return (
+      <div className="report-image-block">
+        <img src={src} alt="User provided image" />
+      </div>
+    );
   }
 
   if (content.type === 'thinking') {
