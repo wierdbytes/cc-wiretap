@@ -1,12 +1,12 @@
 {
   "name": "cc-wiretap",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "HTTP/HTTPS proxy for intercepting and visualizing Claude Code traffic",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "cc-wiretap": "./dist/index.js"
+    "cc-wiretap": "dist/index.js"
   },
   "files": [
     "dist"
@@ -32,7 +32,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/wierdbytes/cc-wiretap.git"
+    "url": "git+https://github.com/wierdbytes/cc-wiretap.git"
   },
   "license": "MIT",
   "dependencies": {
