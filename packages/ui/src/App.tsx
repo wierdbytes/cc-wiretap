@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { useWebSocket, reconnectWebSocket } from '@/hooks/useWebSocket';
 import { useHotkeys } from '@/hooks/useHotkeys';
 import { Header } from '@/components/layout/Header';
 import { RequestList } from '@/components/requests/RequestList';
 import { SessionReportView } from '@/components/views/SessionReportView';
-import { useAppStore, useSidebarVisible } from '@/stores/appStore';
+import { useAppStore, useSidebarVisible, useConnectionStatus } from '@/stores/appStore';
 
 function RequestsPanel() {
   return (
@@ -22,6 +22,8 @@ function RequestsPanel() {
 function App() {
   useWebSocket();
   const sidebarVisible = useSidebarVisible();
+  const connectionStatus = useConnectionStatus();
+  const canReconnect = connectionStatus === 'disconnected' || connectionStatus === 'error';
 
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const triggerCollapseAll = useAppStore((s) => s.triggerCollapseAll);
@@ -51,8 +53,9 @@ function App() {
       { code: 'Digit3', action: triggerToggleMessages, description: 'Toggle messages' },
       { code: 'KeyX', action: openClearDialog, description: 'Clear all' },
       { key: '?', action: openHotkeysDialog, description: 'Show help' },
+      ...(canReconnect ? [{ code: 'KeyR', action: reconnectWebSocket, description: 'Reconnect' }] : []),
     ],
-    [toggleSidebar, triggerCollapseAll, triggerExpandAll, selectLastRequest, triggerToggleSystemPrompt, triggerToggleTools, triggerToggleMessages, openClearDialog, openHotkeysDialog, anyDialogOpen]
+    [toggleSidebar, triggerCollapseAll, triggerExpandAll, selectLastRequest, triggerToggleSystemPrompt, triggerToggleTools, triggerToggleMessages, openClearDialog, openHotkeysDialog, anyDialogOpen, canReconnect]
   );
 
   useHotkeys(hotkeys);

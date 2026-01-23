@@ -7,10 +7,24 @@ const RECONNECT_DELAY = 3000;
 
 // Global reference to WebSocket for sending messages
 let globalWsRef: WebSocket | null = null;
+// Global reference to connect function for manual reconnection
+let globalConnectFn: (() => void) | null = null;
+// Global reference to cancel pending reconnect
+let globalCancelReconnectFn: (() => void) | null = null;
 
 export function sendWebSocketMessage(message: { type: string; [key: string]: unknown }) {
   if (globalWsRef?.readyState === WebSocket.OPEN) {
     globalWsRef.send(JSON.stringify(message));
+  }
+}
+
+export function reconnectWebSocket() {
+  const status = useAppStore.getState().connectionStatus;
+  if (status === 'disconnected' || status === 'error') {
+    // Cancel any pending reconnect timeout
+    globalCancelReconnectFn?.();
+    // Trigger immediate reconnect
+    globalConnectFn?.();
   }
 }
 
@@ -22,9 +36,24 @@ export function useWebSocket() {
   useEffect(() => {
     isUnmountedRef.current = false;
 
+    const cancelReconnect = () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    };
+
     const connect = () => {
       if (isUnmountedRef.current) return;
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
+      if (wsRef.current?.readyState === WebSocket.CONNECTING) return;
+
+      // Close existing socket if in weird state
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+        globalWsRef = null;
+      }
 
       useAppStore.getState().setConnectionStatus('connecting');
 
@@ -71,20 +100,21 @@ export function useWebSocket() {
 
     const scheduleReconnect = () => {
       if (isUnmountedRef.current) return;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      cancelReconnect();
       reconnectTimeoutRef.current = setTimeout(connect, RECONNECT_DELAY);
     };
+
+    // Expose functions globally for manual reconnection
+    globalConnectFn = connect;
+    globalCancelReconnectFn = cancelReconnect;
 
     connect();
 
     return () => {
       isUnmountedRef.current = true;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
+      globalConnectFn = null;
+      globalCancelReconnectFn = null;
+      cancelReconnect();
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;

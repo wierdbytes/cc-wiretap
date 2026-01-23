@@ -20,6 +20,7 @@ const hotkeys: HotkeyItem[] = [
   { key: '2', label: '2', description: 'Toggle tools' },
   { key: '3', label: '3', description: 'Toggle messages' },
   { key: 'X', label: 'X', description: 'Clear all requests' },
+  { key: 'R', label: 'R', description: 'Reconnect (when disconnected)' },
   { key: '?', label: '?', description: 'Show this help' },
 ];
 
