@@ -17,6 +17,11 @@ export function useHotkeys(hotkeys: HotkeyConfig[]) {
         return;
       }
 
+      // Ignore when any modifier is pressed
+      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) {
+        return;
+      }
+
       const hotkey = hotkeys.find((h) =>
         (h.code && h.code === e.code) || (h.key && h.key === e.key)
       );
