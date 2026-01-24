@@ -1,6 +1,6 @@
 {
   "name": "cc-wiretap",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "private": true,
   "description": "HTTP/HTTPS proxy for intercepting and visualizing Claude Code traffic",
   "scripts": {
