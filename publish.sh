@@ -30,6 +30,11 @@ echo ""
 echo "Rebuilding with new version..."
 pnpm build
 
+if ! npm whoami &>/dev/null; then
+  echo "npm auth expired, logging in..."
+  npm login
+fi
+
 npm publish --access public
 
 # Commit version bump and create git tag
