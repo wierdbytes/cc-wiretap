@@ -7,7 +7,7 @@ import { WiretapWebSocketServer } from "./websocket.js";
 import { createSetupServer, getSetupCommand } from "./setup-server.js";
 import { createUIServer } from "./ui-server.js";
 
-const VERSION = "1.0.9";
+const VERSION = "1.0.10";
 
 const BANNER = `
 ${chalk.cyan("╔════════════════════════════════════════════════════════════╗")}
