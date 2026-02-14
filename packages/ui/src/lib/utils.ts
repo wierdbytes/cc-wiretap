@@ -39,38 +39,33 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 export function extractModelName(model: string): string {
-  // Map model IDs to friendly display names
-  const modelLower = model.toLowerCase();
+  const tiers = ['opus', 'sonnet', 'haiku'];
+  const lower = model.toLowerCase();
 
-  if (modelLower.includes('opus-4-5') || modelLower.includes('opus-4.5')) {
-    return 'Opus 4.5';
-  }
-  if (modelLower.includes('opus-4') || modelLower.includes('opus4')) {
-    return 'Opus 4';
-  }
-  if (modelLower.includes('sonnet-4') || modelLower.includes('sonnet4')) {
-    return 'Sonnet 4';
-  }
-  if (modelLower.includes('sonnet-3-5') || modelLower.includes('sonnet-3.5')) {
-    return 'Sonnet 3.5';
-  }
-  if (modelLower.includes('sonnet')) {
-    return 'Sonnet';
-  }
-  if (modelLower.includes('haiku-3') || modelLower.includes('haiku3')) {
-    return 'Haiku 3';
-  }
-  if (modelLower.includes('haiku')) {
-    return 'Haiku';
-  }
-  if (modelLower.includes('opus')) {
-    return 'Opus';
+  const tier = tiers.find((t) => lower.includes(t));
+  if (!tier) {
+    const parts = model.split('-');
+    return parts.length >= 2 ? parts.slice(0, 2).join('-') : model;
   }
 
-  // Fallback: extract basic model name
-  const parts = model.split('-');
-  if (parts.length >= 2) {
-    return parts.slice(0, 2).join('-');
+  const label = tier.charAt(0).toUpperCase() + tier.slice(1);
+
+  // Strip date suffix (YYYYMMDD) before parsing version
+  const base = lower.replace(/-?\d{8}$/, '');
+
+  // New format: {tier}-{major}[-{minor}] e.g. "opus-4-6", "sonnet-4-5"
+  const newFmt = base.match(new RegExp(`${tier}-(\\d+)(?:-(\\d+))?`));
+  if (newFmt) {
+    const [, major, minor] = newFmt;
+    return minor && minor !== '0' ? `${label} ${major}.${minor}` : `${label} ${major}`;
   }
-  return model;
+
+  // Old format: {major}[-{minor}]-{tier} e.g. "3-5-sonnet", "3-opus"
+  const oldFmt = base.match(new RegExp(`(\\d+)(?:-(\\d+))?-${tier}`));
+  if (oldFmt) {
+    const [, major, minor] = oldFmt;
+    return minor ? `${label} ${major}.${minor}` : `${label} ${major}`;
+  }
+
+  return label;
 }
