@@ -1,12 +1,13 @@
 import { useCallback } from 'react';
-import { Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown, Keyboard, Loader2, Cpu, MessageSquare, Clock, ArrowUp, ArrowDown, BookOpen, PenLine, Database, Wifi, WifiOff, CircleAlert } from 'lucide-react';
+import { Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown, Keyboard, Loader2, Cpu, MessageSquare, Clock, ArrowUp, ArrowDown, BookOpen, PenLine, Database, Wifi, WifiOff, CircleAlert, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { HotkeysDialog } from '@/components/ui/hotkeys-dialog';
-import { useConnectionStatus, useSidebarVisible, useShowClearDialog, useShowHotkeysDialog, useAppStore, useSelectedRequest } from '@/stores/appStore';
+import { useConnectionStatus, useSidebarVisible, useShowClearDialog, useShowHotkeysDialog, useAppStore, useSelectedRequest, useEndpointInfo } from '@/stores/appStore';
 import { sendWebSocketMessage, reconnectWebSocket } from '@/hooks/useWebSocket';
 import { formatDuration, extractModelName, formatTokenCount } from '@/lib/utils';
 import type { ConnectionStatus } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 const statusConfig: Record<ConnectionStatus, { label: string; color: string; clickable: boolean }> = {
   connected: { label: 'Connected', color: 'text-emerald-500', clickable: false },
@@ -26,6 +27,7 @@ export function Header() {
   const triggerExpandAll = useAppStore((state) => state.triggerExpandAll);
   const triggerCollapseAll = useAppStore((state) => state.triggerCollapseAll);
   const selectedRequest = useSelectedRequest();
+  const endpointInfo = useEndpointInfo();
   const { label, color, clickable } = statusConfig[connectionStatus];
 
   // Extract request info
@@ -161,6 +163,21 @@ export function Header() {
               <div className="flex items-center gap-1 text-emerald-400" title="Output tokens">
                 <ArrowDown className="h-3.5 w-3.5" />
                 <span>{formatTokenCount(outputTokens)}</span>
+              </div>
+            </>
+          )}
+
+          {endpointInfo && (
+            <>
+              <span className="text-muted-foreground/40 mx-1">|</span>
+              <div className="flex items-center gap-1.5 text-xs">
+                <Server className="h-3 w-3 opacity-60" />
+                <Badge
+                  variant={endpointInfo.isLocalLlm ? 'local_llm' : 'claude_api'}
+                  className="gap-1"
+                >
+                  {endpointInfo.isLocalLlm ? 'Local LLM' : 'Claude API'}
+                </Badge>
               </div>
             </>
           )}

@@ -5,6 +5,7 @@ import type {
   ClaudeRequest,
   ClaudeResponse,
   InterceptedRequest,
+  EndpointInfo,
 } from './types.js';
 import { SSEStreamParser, reconstructResponseFromEvents } from './parser.js';
 import type { WiretapWebSocketServer } from './websocket.js';
@@ -18,24 +19,27 @@ const CLAUDE_MESSAGES_PATH = '/v1/messages';
 
 export class ClaudeInterceptor {
   private wsServer: WiretapWebSocketServer;
+  private endpointInfo: EndpointInfo;
   private activeRequests: Map<string, {
     request: InterceptedRequest;
     parser: SSEStreamParser;
   }> = new Map();
 
-  constructor(wsServer: WiretapWebSocketServer) {
+  constructor(wsServer: WiretapWebSocketServer, endpointInfo?: EndpointInfo) {
     this.wsServer = wsServer;
+    this.endpointInfo = endpointInfo || {
+      url: 'https://api.anthropic.com/v1/messages',
+      source: 'default',
+      isLocalLlm: false,
+    };
   }
 
   isClaudeRequest(request: CompletedRequest): boolean {
-    const host = request.headers.host || new URL(request.url).host;
     const path = new URL(request.url).pathname;
+    const method = request.method;
 
-    return (
-      CLAUDE_API_HOSTS.some((h) => host.includes(h)) &&
-      path.includes(CLAUDE_MESSAGES_PATH) &&
-      request.method === 'POST'
-    );
+    // Check for Claude API path and POST method only (not host-based filtering)
+    return path.includes(CLAUDE_MESSAGES_PATH) && method === 'POST';
   }
 
   async handleRequest(request: CompletedRequest): Promise<string | null> {
@@ -107,6 +111,13 @@ export class ClaudeInterceptor {
         `${messageCount} messages`,
         hasTools ? chalk.yellow(`+ ${requestBody.tools!.length} tools`) : '',
         isStreaming ? chalk.magenta('streaming') : ''
+      );
+
+      // Log endpoint info
+      console.log(
+        chalk.gray('  Endpoint:'),
+        chalk.cyan(this.endpointInfo.url),
+        chalk.gray(`(${this.endpointInfo.source})`)
       );
     }
 
@@ -297,5 +308,9 @@ export class ClaudeInterceptor {
 
   getActiveRequestCount(): number {
     return this.activeRequests.size;
+  }
+
+  getEndpointInfo(): EndpointInfo {
+    return this.endpointInfo;
   }
 }

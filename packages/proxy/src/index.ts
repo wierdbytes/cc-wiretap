@@ -2,10 +2,11 @@ import { Command } from "commander";
 import chalk from "chalk";
 import open from "open";
 import { loadOrGenerateCA, getCAPath } from "./ca.js";
-import { createProxy } from "./proxy.js";
+import { createProxy, type ProxyServer } from "./proxy.js";
 import { WiretapWebSocketServer } from "./websocket.js";
 import { createSetupServer, getSetupCommand } from "./setup-server.js";
 import { createUIServer } from "./ui-server.js";
+import { detectEndpoint, type EndpointInfo } from "./endpoint-detector.js";
 
 const VERSION = "1.0.10";
 
@@ -51,8 +52,13 @@ async function main() {
         // Load or generate CA certificate
         const ca = await loadOrGenerateCA();
 
+        // Detect endpoint (env var > settings.json > default)
+        const endpointInfo: EndpointInfo = detectEndpoint();
+        console.log(chalk.gray("Endpoint:"), endpointInfo.source, chalk.cyan(endpointInfo.url));
+
         // Start WebSocket server
         const wsServer = new WiretapWebSocketServer({ port: wsPort });
+        wsServer.setEndpointInfo(endpointInfo);
         console.log(
           chalk.green("✓"),
           `WebSocket server started on port ${chalk.cyan(wsPort)}`,
@@ -63,10 +69,11 @@ async function main() {
           port: proxyPort,
           ca,
           wsServer,
-        });
+          endpointInfo,
+        }) as ProxyServer;
 
         // Start setup server (for terminal eval command)
-        const setupServer = createSetupServer(proxyPort);
+        const setupServer = createSetupServer(proxyPort, endpointInfo);
 
         // Start UI server (serves bundled dashboard)
         const uiServer = createUIServer({ port: uiPort });

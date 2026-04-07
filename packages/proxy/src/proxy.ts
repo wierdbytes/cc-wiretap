@@ -2,7 +2,8 @@ import * as mockttp from 'mockttp';
 import chalk from 'chalk';
 import { gunzipSync, brotliDecompressSync } from 'zlib';
 import type { CAConfig } from './ca.js';
-import { ClaudeInterceptor, CLAUDE_API_HOSTS } from './interceptor.js';
+import { ClaudeInterceptor } from './interceptor.js';
+import { detectEndpoint, type EndpointInfo } from './endpoint-detector.js';
 import type { WiretapWebSocketServer } from './websocket.js';
 
 function decompressBody(buffer: Buffer, contentEncoding: string | undefined): string {
@@ -22,29 +23,25 @@ function decompressBody(buffer: Buffer, contentEncoding: string | undefined): st
   return buffer.toString('utf-8');
 }
 
-function isAnthropicHost(url: string): boolean {
-  try {
-    const host = new URL(url).host;
-    return CLAUDE_API_HOSTS.some((h) => host.includes(h));
-  } catch {
-    return false;
-  }
-}
-
 export interface ProxyOptions {
   port: number;
   ca: CAConfig;
   wsServer: WiretapWebSocketServer;
+  endpointInfo?: EndpointInfo;
 }
 
 export interface ProxyServer {
   server: mockttp.Mockttp;
   interceptor: ClaudeInterceptor;
+  endpointInfo: EndpointInfo;
   stop: () => Promise<void>;
 }
 
 export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
-  const { port, ca, wsServer } = options;
+  const { port, ca, wsServer, endpointInfo: providedEndpointInfo } = options;
+
+  // Determine endpoint if not provided
+  const endpointInfo = providedEndpointInfo || detectEndpoint();
 
   const server = mockttp.getLocal({
     https: {
@@ -55,27 +52,28 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
 
   const interceptor = new ClaudeInterceptor(wsServer);
 
-  // Track request IDs for matching requests to responses (only for Anthropic requests)
+  // Track request IDs for matching requests to responses
   const requestIds = new Map<string, string>();
 
-  // All requests pass through, but only Anthropic API requests are intercepted
+  // All requests pass through - we intercept Claude API traffic based on path
   await server
     .forAnyRequest()
     .thenPassThrough({
       beforeRequest: async (request) => {
-        // Quick check - skip non-Anthropic hosts immediately
-        if (!isAnthropicHost(request.url)) {
-          return {};
-        }
+        // Check if this is a Claude API request (based on path, not host)
+        const path = new URL(request.url).pathname;
+        const isClaudeRequest = path.includes('/v1/messages') && request.method === 'POST';
 
-        const requestId = await interceptor.handleRequest(request);
-        if (requestId) {
-          requestIds.set(request.id, requestId);
+        if (isClaudeRequest) {
+          const requestId = await interceptor.handleRequest(request);
+          if (requestId) {
+            requestIds.set(request.id, requestId);
+          }
         }
         return {};
       },
       beforeResponse: async (response) => {
-        // Only process if we have a tracked request ID (i.e., it was an Anthropic request)
+        // Only process if we have a tracked request ID
         const requestId = requestIds.get(response.id);
         if (!requestId) {
           return {};
@@ -109,12 +107,13 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
   await server.start(port);
 
   console.log(chalk.green('✓'), `Proxy server started on port ${chalk.cyan(port)}`);
-  console.log(chalk.gray('  Intercepting:'), CLAUDE_API_HOSTS.join(', '));
-  console.log(chalk.gray('  All other traffic: transparent passthrough'));
+  console.log(chalk.gray('  Endpoint:'), endpointInfo.source, chalk.cyan(endpointInfo.url));
+  console.log(chalk.gray('  All Claude API traffic: intercepted and displayed in UI'));
 
   return {
     server,
     interceptor,
+    endpointInfo,
     stop: async () => {
       await server.stop();
       console.log(chalk.gray('○'), 'Proxy server stopped');

@@ -1,11 +1,20 @@
 import { createServer, type Server } from 'http';
 import { getCAPath } from './ca.js';
 import chalk from 'chalk';
+import type { EndpointInfo } from './types.js';
 
 const SETUP_PORT = 8082;
 
-function generateSetupScript(proxyPort: number): string {
+function generateSetupScript(proxyPort: number, endpointInfo?: EndpointInfo): string {
   const caPath = getCAPath();
+  let endpointDisplay = '';
+
+  if (endpointInfo) {
+    const endpointType = endpointInfo.isLocalLlm ? 'Local LLM' : 'Claude API';
+    endpointDisplay = `
+  Endpoint: ${endpointType} (${endpointInfo.source})
+  URL:      ${endpointInfo.url}`;
+  }
 
   return `#!/bin/bash
 # CC Wiretap - Terminal Setup Script
@@ -50,7 +59,15 @@ echo ""
 echo "  ✓ CC Wiretap proxy configured for this terminal"
 echo ""
 echo "  Proxy:  http://localhost:${proxyPort}"
-echo "  CA:     ${caPath}"
+echo "  CA:     ${caPath}${endpointDisplay}"
+echo ""
+echo "  To trust the CA certificate (macOS):"
+echo "    sudo security add-trusted-cert -d -r trustRoot \\\\"
+echo "      -k /Library/Keychains/System.keychain \\\"${caPath}\\\""
+echo ""
+echo "  To trust the CA certificate (Linux - Debian/Ubuntu):"
+echo "    sudo cp \\\"${caPath}\\\" /usr/local/share/ca-certificates/cc-wiretap.crt"
+echo "    sudo update-ca-certificates"
 echo ""
 echo "  All HTTP/HTTPS traffic from this terminal will be intercepted."
 echo "  Run 'unset-wiretap' to disable."
@@ -68,8 +85,16 @@ export -f unset-wiretap 2>/dev/null || true
 `;
 }
 
-function generateFishScript(proxyPort: number): string {
+function generateFishScript(proxyPort: number, endpointInfo?: EndpointInfo): string {
   const caPath = getCAPath();
+  let endpointDisplay = '';
+
+  if (endpointInfo) {
+    const endpointType = endpointInfo.isLocalLlm ? 'Local LLM' : 'Claude API';
+    endpointDisplay = `
+  Endpoint: ${endpointType} (${endpointInfo.source})
+  URL:      ${endpointInfo.url}`;
+  }
 
   return `# CC Wiretap - Fish Shell Setup Script
 
@@ -91,7 +116,7 @@ echo ""
 echo "  ✓ CC Wiretap proxy configured for this terminal"
 echo ""
 echo "  Proxy:  http://localhost:${proxyPort}"
-echo "  CA:     ${caPath}"
+echo "  CA:     ${caPath}${endpointDisplay}"
 echo ""
 
 function unset-wiretap
@@ -104,7 +129,7 @@ end
 `;
 }
 
-export function createSetupServer(proxyPort: number): Server {
+export function createSetupServer(proxyPort: number, endpointInfo?: EndpointInfo): Server {
   const server = createServer((req, res) => {
     const url = new URL(req.url || '/', `http://localhost:${SETUP_PORT}`);
 
@@ -119,9 +144,9 @@ export function createSetupServer(proxyPort: number): Server {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
       if (shell === 'fish') {
-        res.end(generateFishScript(proxyPort));
+        res.end(generateFishScript(proxyPort, endpointInfo));
       } else {
-        res.end(generateSetupScript(proxyPort));
+        res.end(generateSetupScript(proxyPort, endpointInfo));
       }
     } else if (url.pathname === '/status') {
       res.setHeader('Content-Type', 'application/json');
@@ -129,6 +154,7 @@ export function createSetupServer(proxyPort: number): Server {
         active: true,
         proxyPort,
         caPath: getCAPath(),
+        endpointInfo,
       }));
     } else {
       res.statusCode = 404;
