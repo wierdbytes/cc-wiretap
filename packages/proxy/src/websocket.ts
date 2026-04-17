@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
-import type { WSMessage, InterceptedRequest } from './types.js';
+import type { WSMessage, InterceptedRequest, EndpointInfo } from './types.js';
 import chalk from 'chalk';
 
 export interface WiretapWebSocketServerOptions {
@@ -12,6 +12,7 @@ export class WiretapWebSocketServer {
   private wss: WebSocketServer;
   private clients: Set<WebSocket> = new Set();
   private requests: Map<string, InterceptedRequest> = new Map();
+  private endpointInfo: EndpointInfo | null = null;
 
   constructor(options: WiretapWebSocketServerOptions = {}) {
     if (options.server) {
@@ -57,7 +58,21 @@ export class WiretapWebSocketServer {
     });
   }
 
+  setEndpointInfo(info: EndpointInfo): void {
+    this.endpointInfo = info;
+  }
+
   private sendCurrentState(ws: WebSocket): void {
+    // Send session start with endpoint info first
+    if (this.endpointInfo) {
+      this.sendToClient(ws, {
+        type: 'session_start',
+        sessionId: Date.now().toString(),
+        timestamp: Date.now(),
+        endpointInfo: this.endpointInfo,
+      });
+    }
+
     // Send all existing requests in a single message for fast initial load
     if (this.requests.size > 0) {
       this.sendToClient(ws, {
