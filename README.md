@@ -132,6 +132,7 @@ When a request is selected, displays a collapsible report with:
 | `2` | Toggle tools visibility |
 | `3` | Toggle messages visibility |
 | `X` | Clear all requests |
+| `R` | Reconnect WebSocket (only when disconnected) |
 | `?` | Show hotkeys help |
 
 ## Ports

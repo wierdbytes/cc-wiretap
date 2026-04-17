@@ -81,6 +81,7 @@ Backend proxy server using mockttp.
 - `src/interceptor.ts` - Request/response interception logic
 - `src/proxy.ts` - mockttp proxy configuration
 - `src/setup-server.ts` - HTTP server for terminal setup scripts
+- `src/ui-server.ts` - Static server for bundled UI (production builds)
 
 ### Dependencies
 
@@ -88,6 +89,7 @@ Backend proxy server using mockttp.
 - ws - WebSocket server
 - commander - CLI framework
 - chalk - Terminal styling
+- open - Opens the dashboard URL in the default browser on startup
 
 ## Package: @cc-wiretap/ui
 
@@ -98,7 +100,11 @@ React frontend dashboard.
 - `src/App.tsx` - Main app layout
 - `src/stores/appStore.ts` - Zustand state management
 - `src/hooks/useWebSocket.ts` - WebSocket connection hook
-- `src/components/requests/RequestDetail.tsx` - Main detail view
+- `src/hooks/useHotkeys.ts` - Keyboard shortcut dispatcher
+- `src/components/layout/Header.tsx` - Header with connection, tokens, rate limits
+- `src/components/requests/RequestList.tsx` - Sidebar list of intercepted requests
+- `src/components/requests/RequestItem.tsx` - Single row in the requests sidebar
+- `src/components/views/SessionReportView.tsx` - Main request detail view
 - `src/lib/types.ts` - TypeScript types (synced with proxy)
 
 ### UI Features
@@ -125,9 +131,10 @@ React frontend dashboard.
 | `2` | Toggle tools |
 | `3` | Toggle messages |
 | `X` | Clear all requests |
+| `R` | Reconnect WebSocket (only when disconnected) |
 | `?` | Show hotkeys help |
 
-Implementation: `useHotkeys` hook uses `event.code` for layout-independent keys. Hotkeys are disabled when dialogs are open.
+Implementation: `useHotkeys` hook uses `event.code` for layout-independent keys. Hotkeys are disabled when dialogs are open or when a modifier (Ctrl/Alt/Meta/Shift) is held.
 
 ### Tech Stack
 
@@ -159,18 +166,21 @@ The setup script configures these environment variables:
 
 ## WebSocket Protocol
 
-Messages from proxy to UI:
+Messages are defined in `packages/proxy/src/types.ts`. All variants are broadcast proxy → UI except `clear_all`, which flows both ways (UI sends it to request a clear; proxy echoes it to all clients).
 
 ```typescript
 type WSMessage =
-  | { type: 'session_start'; sessionId: string; timestamp: number }
-  | { type: 'request_start'; sessionId: string; requestId: string; ... }
-  | { type: 'request_body'; sessionId: string; requestId: string; body: ClaudeRequest }
-  | { type: 'response_start'; sessionId: string; requestId: string; statusCode: number; ... }
-  | { type: 'response_chunk'; sessionId: string; requestId: string; event: SSEEvent }
-  | { type: 'response_complete'; sessionId: string; requestId: string; response: ClaudeResponse; ... }
-  | { type: 'error'; sessionId: string; requestId?: string; error: string; ... }
+  | { type: 'request_start'; requestId: string; timestamp: number; method: string; url: string; headers: Record<string, string> }
+  | { type: 'request_body'; requestId: string; body: ClaudeRequest }
+  | { type: 'response_start'; requestId: string; timestamp: number; statusCode: number; headers: Record<string, string> }
+  | { type: 'response_chunk'; requestId: string; event: SSEEvent }
+  | { type: 'response_complete'; requestId: string; timestamp: number; response: ClaudeResponse; durationMs: number }
+  | { type: 'error'; requestId?: string; error: string; timestamp: number }
+  | { type: 'clear_all' }
+  | { type: 'history_sync'; requests: InterceptedRequest[] }
 ```
+
+`history_sync` is sent once to each newly-connected client so late joiners see prior requests.
 
 ## CA Certificate
 
@@ -198,12 +208,13 @@ pnpm clean
 
 ## Architecture Notes
 
-1. **Proxy intercepts** all HTTPS traffic to api.anthropic.com
+1. **Proxy intercepts** HTTPS traffic to `api.anthropic.com` and `api.claude.ai` (POST `/v1/messages` only — see `CLAUDE_API_HOSTS` in `interceptor.ts`)
 2. **Interceptor** parses Claude API requests/responses
 3. **SSE Parser** handles streaming responses in real-time
 4. **WebSocket** broadcasts events to connected UI clients
 5. **Setup Server** provides terminal configuration scripts
-6. **UI Store** maintains state with Zustand
-7. **React components** render the intercepted data
+6. **UI Server** serves the bundled dashboard in production (dev uses Vite instead)
+7. **UI Store** maintains state with Zustand
+8. **React components** render the intercepted data
 
 The proxy uses mockttp's `beforeRequest` and `beforeResponse` hooks to capture traffic without modifying it.
