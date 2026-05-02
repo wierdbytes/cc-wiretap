@@ -87,17 +87,16 @@ export async function createProxy(options: ProxyOptions): Promise<ProxyServer> {
         const contentType = response.headers['content-type'] || '';
         const isStreaming = contentType.includes('text/event-stream');
 
+        const bodyBuffer = response.body.buffer;
+        const contentEncoding = response.headers['content-encoding'] as string | undefined;
+        const bodyText = decompressBody(bodyBuffer, contentEncoding);
+
         if (isStreaming) {
-          const bodyBuffer = response.body.buffer;
-          if (bodyBuffer.length > 0) {
-            const bodyText = bodyBuffer.toString('utf-8');
+          if (bodyText.length > 0) {
             interceptor.handleResponseChunk(requestId, bodyText);
           }
           await interceptor.handleResponseComplete(requestId);
         } else {
-          const bodyBuffer = response.body.buffer;
-          const contentEncoding = response.headers['content-encoding'] as string | undefined;
-          const bodyText = decompressBody(bodyBuffer, contentEncoding);
           interceptor.handleNonStreamingResponse(requestId, response.statusCode, bodyText);
         }
 
