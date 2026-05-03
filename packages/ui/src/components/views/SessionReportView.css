@@ -549,6 +549,48 @@
   display: block;
 }
 
+/* Web search results */
+.report-web-search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.report-web-search-result {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--report-tool-result-color);
+  border-radius: 3px;
+}
+
+.report-web-search-title {
+  color: #61afef;
+  text-decoration: none;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 2px;
+  word-break: break-word;
+}
+
+.report-web-search-title:hover {
+  text-decoration: underline;
+}
+
+.report-web-search-url {
+  font-size: 0.8em;
+  color: #888;
+  word-break: break-all;
+}
+
+.report-web-search-age {
+  font-size: 0.75em;
+  color: #666;
+  margin-top: 2px;
+}
+
 /* Error block */
 .report-error-block {
   background: rgba(244, 71, 71, 0.1);

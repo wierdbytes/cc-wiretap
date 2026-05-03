@@ -14,6 +14,9 @@ import type {
   ClaudeTool,
   SystemBlock,
   ClaudeResponse,
+  ServerToolUseContent,
+  WebSearchToolResultContent,
+  WebSearchResultBlock,
 } from '@/lib/types';
 import './SessionReportView.css';
 
@@ -32,6 +35,9 @@ const jsonStyles = {
 // JSON syntax highlighter
 function highlightJson(obj: unknown): string {
   const json = JSON.stringify(obj, null, 2);
+  if (json === undefined) {
+    return `<span class="json-null">${escapeHtml(String(obj))}</span>`;
+  }
   return json.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
     (match) => {
@@ -172,7 +178,8 @@ function ToolsSection({
               {tool.name}
             </div>
             <div className="report-tool-item-description">
-              {tool.description || 'No description'}
+              {tool.description ||
+                (tool.type ? `Server tool (${tool.type})` : 'No description')}
             </div>
             <div
               className={`report-tool-item-schema-wrapper ${toolSchemasExpanded[index] ? 'schema-expanded' : ''}`}
@@ -184,10 +191,12 @@ function ToolsSection({
                   onToggleToolSchema(index);
                 }}
               >
-                Input Schema
+                {tool.input_schema ? 'Input Schema' : 'Configuration'}
               </div>
               <div className="report-tool-item-schema">
-                <HighlightedJson data={tool.input_schema} />
+                <HighlightedJson
+                  data={tool.input_schema ?? getServerToolConfig(tool)}
+                />
               </div>
             </div>
           </div>
@@ -219,23 +228,90 @@ function ThinkingBlock({
   );
 }
 
-// Tool use block
+// Helper: extract server-tool config (everything except name/type) for display
+function getServerToolConfig(tool: ClaudeTool): Record<string, unknown> {
+  const { name, type, description, input_schema, ...rest } = tool;
+  void name;
+  void type;
+  void description;
+  void input_schema;
+  return rest;
+}
+
+// Tool use block (also used for server_tool_use)
 function ToolUseBlock({
   toolUse,
   expanded,
   onToggle,
+  serverSide = false,
 }: {
-  toolUse: ToolUseContent;
+  toolUse: ToolUseContent | ServerToolUseContent;
   expanded: boolean;
   onToggle: () => void;
+  serverSide?: boolean;
 }) {
   return (
     <div className={`report-tool-use-block ${expanded ? 'expanded' : ''}`}>
       <div className="report-tool-header" onClick={onToggle}>
-        TOOL CALL: <span className="report-tool-name">{toolUse.name}</span>
+        {serverSide ? 'SERVER TOOL CALL' : 'TOOL CALL'}:{' '}
+        <span className="report-tool-name">{toolUse.name}</span>
       </div>
       <div className="report-tool-input">
         <HighlightedJson data={toolUse.input} />
+      </div>
+    </div>
+  );
+}
+
+// Web search tool result block
+function WebSearchResultBlockView({
+  toolResult,
+  expanded,
+  onToggle,
+}: {
+  toolResult: WebSearchToolResultContent;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const isError =
+    !Array.isArray(toolResult.content) &&
+    toolResult.content?.type === 'web_search_tool_result_error';
+  const results: WebSearchResultBlock[] = Array.isArray(toolResult.content)
+    ? toolResult.content
+    : [];
+
+  return (
+    <div
+      className={`report-tool-result-block ${expanded ? 'expanded' : ''} ${isError ? 'error' : ''}`}
+    >
+      <div className="report-tool-result-header" onClick={onToggle}>
+        WEB SEARCH RESULT{isError ? ' (error)' : ` (${results.length})`}
+      </div>
+      <div className="report-tool-result-content">
+        {isError ? (
+          <pre>
+            {(toolResult.content as { error_code: string }).error_code}
+          </pre>
+        ) : (
+          <ul className="report-web-search-results">
+            {results.map((r, i) => (
+              <li key={i} className="report-web-search-result">
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="report-web-search-title"
+                >
+                  {r.title || r.url}
+                </a>
+                <div className="report-web-search-url">{r.url}</div>
+                {r.page_age && (
+                  <div className="report-web-search-age">{r.page_age}</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -328,6 +404,27 @@ function ContentBlockRenderer({
     );
   }
 
+  if (content.type === 'server_tool_use') {
+    return (
+      <ToolUseBlock
+        toolUse={content as ServerToolUseContent}
+        expanded={expandedBlocks[blockKey] ?? false}
+        onToggle={() => onToggleBlock(blockKey)}
+        serverSide
+      />
+    );
+  }
+
+  if (content.type === 'web_search_tool_result') {
+    return (
+      <WebSearchResultBlockView
+        toolResult={content as WebSearchToolResultContent}
+        expanded={expandedBlocks[blockKey] ?? false}
+        onToggle={() => onToggleBlock(blockKey)}
+      />
+    );
+  }
+
   if (content.type === 'tool_result') {
     return (
       <ToolResultBlock
@@ -352,8 +449,15 @@ function getContentPreview(content: ClaudeContent[]): string {
     if (block.type === 'text' && 'text' in block) {
       return block.text.replace(/\s+/g, ' ').trim();
     }
-    if (block.type === 'tool_use') {
-      return `Tool: ${(block as ToolUseContent).name}`;
+    if (block.type === 'tool_use' || block.type === 'server_tool_use') {
+      return `Tool: ${(block as ToolUseContent | ServerToolUseContent).name}`;
+    }
+    if (block.type === 'web_search_tool_result') {
+      const tr = block as WebSearchToolResultContent;
+      if (Array.isArray(tr.content)) {
+        return `Web search: ${tr.content.length} result${tr.content.length === 1 ? '' : 's'}`;
+      }
+      return 'Web search error';
     }
     if (block.type === 'tool_result') {
       const result = block as ToolResultContent;
@@ -747,7 +851,9 @@ export function SessionReportView() {
         if (
           content.type === 'thinking' ||
           content.type === 'tool_use' ||
-          content.type === 'tool_result'
+          content.type === 'tool_result' ||
+          content.type === 'server_tool_use' ||
+          content.type === 'web_search_tool_result'
         ) {
           newBlocks[`msg-${msgIndex}-${i}`] = true;
         }
@@ -759,7 +865,9 @@ export function SessionReportView() {
         if (
           content.type === 'thinking' ||
           content.type === 'tool_use' ||
-          content.type === 'tool_result'
+          content.type === 'tool_result' ||
+          content.type === 'server_tool_use' ||
+          content.type === 'web_search_tool_result'
         ) {
           newBlocks[`resp-0-${i}`] = true;
         }

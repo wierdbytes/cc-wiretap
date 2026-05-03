@@ -4,6 +4,8 @@ import type {
   ClaudeContent,
   TextContent,
   ToolUseContent,
+  ServerToolUseContent,
+  WebSearchToolResultContent,
   TokenUsage,
   ContentBlockStartEvent,
   ContentBlockDeltaEvent,
@@ -143,7 +145,10 @@ export function reconstructResponseFromEvents(events: SSEEvent[]): ClaudeMessage
         });
         if (startEvent.content_block.type === 'text') {
           textDeltas.set(startEvent.index, []);
-        } else if (startEvent.content_block.type === 'tool_use') {
+        } else if (
+          startEvent.content_block.type === 'tool_use' ||
+          startEvent.content_block.type === 'server_tool_use'
+        ) {
           jsonDeltas.set(startEvent.index, []);
         }
         break;
@@ -200,6 +205,35 @@ export function reconstructResponseFromEvents(events: SSEEvent[]): ClaudeMessage
         name: (block.content as ToolUseContent).name || '',
         input,
       } as ToolUseContent);
+    } else if (block.type === 'server_tool_use') {
+      const jsonStr = (jsonDeltas.get(index) || []).join('');
+      let input: Record<string, unknown> = {};
+      try {
+        input = jsonStr ? JSON.parse(jsonStr) : {};
+      } catch {
+        // Keep empty object if parsing fails
+      }
+      content.push({
+        type: 'server_tool_use',
+        id: (block.content as ServerToolUseContent).id || '',
+        name: (block.content as ServerToolUseContent).name || '',
+        input,
+      } as ServerToolUseContent);
+    } else if (block.type === 'web_search_tool_result') {
+      // Server-side tool results arrive whole in content_block_start.
+      const src = block.content as Partial<WebSearchToolResultContent>;
+      content.push({
+        type: 'web_search_tool_result',
+        tool_use_id: src.tool_use_id || '',
+        content: src.content as WebSearchToolResultContent['content'],
+      } as WebSearchToolResultContent);
+    } else if (block.type === 'thinking') {
+      // Thinking blocks may also stream; pass through whatever we captured.
+      const src = block.content as { thinking?: string };
+      content.push({
+        type: 'thinking',
+        thinking: src.thinking || '',
+      } as ClaudeContent);
     }
   }
 

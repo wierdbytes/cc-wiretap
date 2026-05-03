@@ -15,7 +15,9 @@ export type ClaudeContent =
   | ImageContent
   | ToolUseContent
   | ToolResultContent
-  | ThinkingContent;
+  | ThinkingContent
+  | ServerToolUseContent
+  | WebSearchToolResultContent;
 
 export interface TextContent {
   type: 'text';
@@ -36,6 +38,32 @@ export interface ToolUseContent {
   id: string;
   name: string;
   input: Record<string, unknown>;
+}
+
+export interface ServerToolUseContent {
+  type: 'server_tool_use';
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+
+export interface WebSearchResultBlock {
+  type: 'web_search_result';
+  url: string;
+  title: string;
+  encrypted_content?: string;
+  page_age?: string | null;
+}
+
+export interface WebSearchToolResultErrorBlock {
+  type: 'web_search_tool_result_error';
+  error_code: string;
+}
+
+export interface WebSearchToolResultContent {
+  type: 'web_search_tool_result';
+  tool_use_id: string;
+  content: WebSearchResultBlock[] | WebSearchToolResultErrorBlock;
 }
 
 export interface ToolResultContent {
@@ -68,8 +96,15 @@ export interface SystemBlock {
 
 export interface ClaudeTool {
   name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
+  description?: string;
+  input_schema?: Record<string, unknown>;
+  // Server-side tools (e.g. web_search) have a `type` like "web_search_20250305"
+  // and use config fields instead of `input_schema`.
+  type?: string;
+  max_uses?: number;
+  allowed_domains?: string[];
+  blocked_domains?: string[];
+  user_location?: Record<string, unknown>;
 }
 
 export interface ToolChoice {
