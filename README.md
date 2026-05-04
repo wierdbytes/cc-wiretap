@@ -182,7 +182,7 @@ The setup script configures these variables:
 
 ## How It Works
 
-1. **Proxy** intercepts HTTPS traffic to `api.anthropic.com` and `api.claude.ai`
+1. **Proxy** intercepts HTTPS traffic to `api.anthropic.com` or your local llm API endpoint
 2. **Interceptor** parses Claude API request/response format
 3. **SSE Parser** handles streaming responses in real-time
 4. **WebSocket** broadcasts events to connected dashboard clients

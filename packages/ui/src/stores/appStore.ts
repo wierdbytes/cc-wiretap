@@ -4,12 +4,17 @@ import type {
   ConnectionStatus,
   WSMessage,
   RateLimitInfo,
+  EndpointInfo,
 } from '@/lib/types';
 
 interface AppState {
   // Connection
   connectionStatus: ConnectionStatus;
   setConnectionStatus: (status: ConnectionStatus) => void;
+
+  // Endpoint info
+  endpointInfo: EndpointInfo | null;
+  setEndpointInfo: (info: EndpointInfo | null) => void;
 
   // Rate limits
   rateLimitInfo: RateLimitInfo | null;
@@ -82,6 +87,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionStatus: 'disconnected',
   setConnectionStatus: (status) => set({ connectionStatus: status }),
 
+  // Endpoint info
+  endpointInfo: null,
+  setEndpointInfo: (info) => set({ endpointInfo: info }),
+
   // Rate limits
   rateLimitInfo: null,
 
@@ -131,6 +140,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
 
     switch (message.type) {
+      case 'session_start': {
+        // Set endpoint info from session message
+        if (message.endpointInfo) {
+          set({ endpointInfo: message.endpointInfo });
+        }
+        break;
+      }
+
       case 'request_start': {
         const newRequests = new Map(state.requests);
         newRequests.set(message.requestId, {
@@ -300,3 +317,4 @@ export const useSelectedRequest = () => {
   return requests.get(selectedRequestId) || null;
 };
 export const useRateLimitInfo = () => useAppStore((state) => state.rateLimitInfo);
+export const useEndpointInfo = () => useAppStore((state) => state.endpointInfo);

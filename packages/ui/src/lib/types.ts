@@ -237,11 +237,19 @@ export type WSMessage =
   | WSResponseComplete
   | WSError
   | WSClearAll
-  | WSHistorySync;
+  | WSHistorySync
+  | WSSessionStart;
 
 export interface WSHistorySync {
   type: 'history_sync';
   requests: Request[];
+}
+
+export interface WSSessionStart {
+  type: 'session_start';
+  sessionId: string;
+  timestamp: number;
+  endpointInfo: EndpointInfo;
 }
 
 export interface WSClearAll {
@@ -293,6 +301,13 @@ export interface WSError {
 }
 
 // UI State Types
+
+// Endpoint Information
+export interface EndpointInfo {
+  url: string;
+  source: 'env_var' | 'claude_settings' | 'default';
+  isLocalLlm: boolean;
+}
 
 export interface Request {
   id: string;

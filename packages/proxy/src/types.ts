@@ -249,11 +249,19 @@ export type WSMessage =
   | WSResponseComplete
   | WSError
   | WSClearAll
-  | WSHistorySync;
+  | WSHistorySync
+  | WSSessionStart;
 
 export interface WSHistorySync {
   type: 'history_sync';
   requests: InterceptedRequest[];
+}
+
+export interface WSSessionStart {
+  type: 'session_start';
+  sessionId: string;
+  timestamp: number;
+  endpointInfo: EndpointInfo;
 }
 
 export interface WSClearAll {
@@ -320,4 +328,10 @@ export interface InterceptedRequest {
   response?: ClaudeResponse;
   durationMs?: number;
   error?: string;
+}
+
+export interface EndpointInfo {
+  url: string;
+  source: 'env_var' | 'claude_settings' | 'default';
+  isLocalLlm: boolean;
 }

@@ -14,6 +14,8 @@ const badgeVariants = cva(
         success: 'border-transparent bg-green-600 text-white',
         warning: 'border-transparent bg-yellow-600 text-white',
         info: 'border-transparent bg-blue-600 text-white',
+        local_llm: 'border-transparent bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20',
+        claude_api: 'border-transparent bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20',
       },
     },
     defaultVariants: {
