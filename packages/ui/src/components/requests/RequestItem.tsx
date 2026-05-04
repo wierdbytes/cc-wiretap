@@ -1,4 +1,4 @@
-import { Loader2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, ArrowUp, ArrowDown, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatTimestamp, formatDuration, extractModelName, formatTokenCount } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,34 @@ export function RequestItem({ request, isSelected, onClick }: RequestItemProps) 
       (response.usage.cache_creation_input_tokens || 0)
     : undefined;
   const outputTokens = isMessageResponse ? response.usage.output_tokens : undefined;
+  const thinking = request.requestBody?.thinking;
+  const thinkingBudget = thinking?.type === 'enabled' ? thinking.budget_tokens : null;
+  const thinkingMode =
+    thinking?.type === 'adaptive'
+      ? 'adaptive'
+      : thinking?.type === 'enabled'
+        ? 'manual'
+        : null;
+  const effort = request.requestBody?.output_config?.effort ?? null;
+  const showEffort = effort !== null || thinkingMode !== null || thinkingBudget !== null;
+
+  const effortLabel = effort
+    ? effort.toUpperCase()
+    : thinkingMode === 'adaptive'
+      ? 'ADAPTIVE'
+      : thinkingBudget !== null
+        ? formatTokenCount(thinkingBudget)
+        : '';
+
+  const effortTooltip = [
+    effort ? `Effort: ${effort}` : null,
+    thinkingMode === 'adaptive' ? 'Thinking: adaptive' : null,
+    thinkingMode === 'manual' && thinkingBudget !== null
+      ? `Thinking budget: ${thinkingBudget.toLocaleString()} tokens`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' • ');
 
   return (
     <button
@@ -47,6 +75,15 @@ export function RequestItem({ request, isSelected, onClick }: RequestItemProps) 
             <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
               error
             </Badge>
+          )}
+          {showEffort && (
+            <span
+              className="flex items-center gap-0.5 text-violet-400"
+              title={effortTooltip}
+            >
+              <Brain className="h-3 w-3" />
+              <span className="text-[10px]">{effortLabel}</span>
+            </span>
           )}
           {totalInputTokens !== undefined && outputTokens !== undefined && (
             <span className="flex items-center gap-1">

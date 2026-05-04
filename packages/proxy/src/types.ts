@@ -86,6 +86,19 @@ export interface ClaudeRequest {
   temperature?: number;
   top_p?: number;
   top_k?: number;
+  thinking?: ThinkingConfig;
+  output_config?: OutputConfig;
+}
+
+export type ThinkingConfig =
+  | { type: 'enabled'; budget_tokens: number }
+  | { type: 'adaptive' }
+  | { type: 'disabled' };
+
+export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+export interface OutputConfig {
+  effort?: EffortLevel;
 }
 
 export interface SystemBlock {

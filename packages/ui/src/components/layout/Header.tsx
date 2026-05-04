@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown, Keyboard, Loader2, Cpu, MessageSquare, Clock, ArrowUp, ArrowDown, BookOpen, PenLine, Database, Wifi, WifiOff, CircleAlert } from 'lucide-react';
+import { Trash2, PanelLeftClose, PanelLeft, ChevronsDownUp, ChevronsUpDown, Keyboard, Loader2, Cpu, MessageSquare, Clock, ArrowUp, ArrowDown, BookOpen, PenLine, Database, Brain, Wifi, WifiOff, CircleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { HotkeysDialog } from '@/components/ui/hotkeys-dialog';
@@ -37,6 +37,29 @@ export function Header() {
   const cacheReadTokens = usage?.cache_read_input_tokens || 0;
   const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
   const totalInputTokens = inputTokens + cacheReadTokens + cacheCreationTokens;
+  const thinking = selectedRequest?.requestBody?.thinking;
+  const thinkingBudget = thinking?.type === 'enabled' ? thinking.budget_tokens : null;
+  const thinkingMode =
+    thinking?.type === 'adaptive'
+      ? 'adaptive'
+      : thinking?.type === 'enabled'
+        ? 'manual'
+        : null;
+  const effort = selectedRequest?.requestBody?.output_config?.effort ?? null;
+  const showEffortBlock = effort !== null || thinkingMode !== null || thinkingBudget !== null;
+
+  const effortColor =
+    effort === 'max'
+      ? 'text-fuchsia-400'
+      : effort === 'xhigh'
+        ? 'text-pink-400'
+        : effort === 'high'
+          ? 'text-violet-400'
+          : effort === 'medium'
+            ? 'text-sky-400'
+            : effort === 'low'
+              ? 'text-muted-foreground'
+              : 'text-violet-400';
 
   const handleReconnect = useCallback(() => {
     if (clickable) {
@@ -107,6 +130,35 @@ export function Header() {
             <MessageSquare className="h-3.5 w-3.5 opacity-60" />
             <span>{msgCount}</span>
           </div>
+
+          {showEffortBlock && (
+            <>
+              <span className="text-muted-foreground/40 mx-1">|</span>
+              <div
+                className={`flex items-center gap-1 ${effortColor}`}
+                title={[
+                  effort ? `Effort: ${effort}` : null,
+                  thinkingMode === 'adaptive' ? 'Thinking: adaptive' : null,
+                  thinkingMode === 'manual' && thinkingBudget !== null
+                    ? `Thinking budget: ${thinkingBudget.toLocaleString()} tokens`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' • ')}
+              >
+                <Brain className="h-3.5 w-3.5" />
+                {effort && <span className="uppercase">{effort}</span>}
+                {thinkingMode === 'manual' && thinkingBudget !== null && (
+                  <span className="text-muted-foreground/70">
+                    {effort ? '·' : ''}{formatTokenCount(thinkingBudget)}
+                  </span>
+                )}
+                {thinkingMode === 'adaptive' && !effort && (
+                  <span className="text-muted-foreground/70">adaptive</span>
+                )}
+              </div>
+            </>
+          )}
 
           {selectedRequest.durationMs !== undefined && (
             <>
