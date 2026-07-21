@@ -190,6 +190,17 @@ The setup script configures these variables:
 
 The proxy captures traffic without modifying it - your Claude Code sessions work exactly as they would without the proxy.
 
+## Releasing
+
+Publishing to npm is automated in CI (OIDC trusted publishing, no tokens in secrets):
+
+1. Bump `version` in `packages/proxy/package.json` (e.g. `npm version patch --no-git-tag-version` inside `packages/proxy`).
+2. Commit and push to `main`.
+
+On every green CI run on `main`, `.github/workflows/publish.yml` runs `scripts/publish.sh`, which publishes `cc-wiretap@<version>` if that version isn't already on npm (a push without a version bump is a no-op). The CLI version banner/`--version` is read from `package.json` at build time, so nothing else needs syncing.
+
+Manual local publish: `scripts/publish.sh` (dry run) / `scripts/publish.sh --publish` (after `npm login`).
+
 ## License
 
 MIT

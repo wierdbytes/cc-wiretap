@@ -34,5 +34,8 @@ coverage/
 # Turbo
 .turbo/
 
+# autosk
+.autosk/
+
 # CA certificates (user-generated)
 # ~/.claude-wiretap/ is the default location

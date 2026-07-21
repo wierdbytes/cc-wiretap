@@ -6,8 +6,9 @@ import { createProxy } from "./proxy.js";
 import { WiretapWebSocketServer } from "./websocket.js";
 import { createSetupServer, getSetupCommand } from "./setup-server.js";
 import { createUIServer } from "./ui-server.js";
-
-const VERSION = "1.0.13";
+// Inlined by tsup at build time, so the CLI always reports the published
+// package version — nothing to keep in sync by hand.
+import { version as VERSION } from "../package.json";
 
 const BANNER = `
 ${chalk.cyan("╔════════════════════════════════════════════════════════════╗")}

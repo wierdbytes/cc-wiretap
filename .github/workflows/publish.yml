@@ -1,0 +1,69 @@
+name: Publish (npm)
+
+# Continuous publishing on `main`, gated on a green CI run.
+#
+# Trigger model (mirrors the autosk publish workflow): this workflow runs via
+# `workflow_run` AFTER the `CI` workflow (ci.yml's `name:`) completes. The `if`
+# below restricts it to a SUCCESSFUL CI run that was triggered by a PUSH to
+# `main` — a red build, a PR, or any non-main branch never publishes. We then
+# check out the EXACT commit CI validated (`workflow_run.head_sha`).
+#
+# What it does:
+#   * `scripts/publish.sh --publish` publishes the `cc-wiretap` package via
+#     OIDC TRUSTED PUBLISHING (no NPM_TOKEN): the `id-token: write` permission
+#     lets npm mint a short-lived OIDC credential that it matches against the
+#     package's trusted-publisher config on npmjs.com. The script is
+#     version-gated, so a push that bumps no version is a no-op; provenance is
+#     automatic under trusted publishing.
+#
+# One-time operator setup (NOT code):
+#   * configure a trusted publisher for the `cc-wiretap` package on npmjs.com
+#     (provider: GitHub Actions, org/repo `wierdbytes/cc-wiretap`, workflow
+#     file `publish.yml`, no environment).
+#
+# Releasing = bump `packages/proxy/package.json` + push to `main`. The CLI
+# banner/`--version` read the version from package.json (bundled at build
+# time), so there is nothing else to sync.
+on:
+  workflow_run:
+    workflows: ["CI"] # ci.yml's `name:` — gate on the core CI
+    types: [completed]
+
+concurrency:
+  group: publish-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # OIDC for npm trusted publishing
+
+jobs:
+  publish:
+    # Only a green CI on a push to `main` publishes.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Publish the exact commit CI validated, not the branch tip.
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      # NO registry-url / token under OIDC — trusted publishing supplies the
+      # credential from `id-token: write`.
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      # Trusted publishing requires a recent npm CLI (>= 11.5.1).
+      - name: Upgrade npm (trusted publishing)
+        run: npm install -g npm@latest
+
+      - name: publish (version-gated npm via OIDC)
+        run: scripts/publish.sh --publish
