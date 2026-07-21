@@ -17,11 +17,18 @@ import type {
  * Parses a raw SSE data string into an SSEEvent
  */
 export function parseSSELine(line: string): SSEEvent | null {
-  if (!line.startsWith('data: ')) {
+  if (!line.startsWith('data:')) {
     return null;
   }
 
-  const jsonStr = line.slice(6).trim();
+  // Per the SSE spec the single space after `data:` is optional. Anthropic sends
+  // "data: {...}" (with space); Qwen Cloud's /apps/anthropic sends "data:{...}"
+  // (no space). Strip at most one leading space so both are accepted.
+  let jsonStr = line.slice(5);
+  if (jsonStr.startsWith(' ')) {
+    jsonStr = jsonStr.slice(1);
+  }
+  jsonStr = jsonStr.trim();
   if (!jsonStr || jsonStr === '[DONE]') {
     return null;
   }
@@ -42,7 +49,7 @@ export function parseSSEChunk(chunk: string): SSEEvent[] {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.startsWith('data: ')) {
+    if (trimmed.startsWith('data:')) {
       const event = parseSSELine(trimmed);
       if (event) {
         events.push(event);
@@ -77,7 +84,7 @@ export class SSEStreamParser {
       const lines = part.split('\n');
       for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.startsWith('data: ')) {
+        if (trimmed.startsWith('data:')) {
           const event = parseSSELine(trimmed);
           if (event) {
             newEvents.push(event);
@@ -130,6 +137,7 @@ export function reconstructResponseFromEvents(events: SSEEvent[]): ClaudeMessage
   const contentBlocks: Map<number, { type: string; content: Partial<ClaudeContent> }> = new Map();
   const textDeltas: Map<number, string[]> = new Map();
   const jsonDeltas: Map<number, string[]> = new Map();
+  const thinkingDeltas: Map<number, string[]> = new Map();
 
   for (const event of events) {
     switch (event.type) {
@@ -145,6 +153,8 @@ export function reconstructResponseFromEvents(events: SSEEvent[]): ClaudeMessage
         });
         if (startEvent.content_block.type === 'text') {
           textDeltas.set(startEvent.index, []);
+        } else if (startEvent.content_block.type === 'thinking') {
+          thinkingDeltas.set(startEvent.index, []);
         } else if (
           startEvent.content_block.type === 'tool_use' ||
           startEvent.content_block.type === 'server_tool_use'
@@ -164,6 +174,10 @@ export function reconstructResponseFromEvents(events: SSEEvent[]): ClaudeMessage
           const deltas = jsonDeltas.get(deltaEvent.index) || [];
           deltas.push(deltaEvent.delta.partial_json);
           jsonDeltas.set(deltaEvent.index, deltas);
+        } else if (deltaEvent.delta.type === 'thinking_delta') {
+          const deltas = thinkingDeltas.get(deltaEvent.index) || [];
+          deltas.push(deltaEvent.delta.thinking);
+          thinkingDeltas.set(deltaEvent.index, deltas);
         }
         break;
       }
@@ -228,11 +242,12 @@ export function reconstructResponseFromEvents(events: SSEEvent[]): ClaudeMessage
         content: src.content as WebSearchToolResultContent['content'],
       } as WebSearchToolResultContent);
     } else if (block.type === 'thinking') {
-      // Thinking blocks may also stream; pass through whatever we captured.
+      // Thinking may stream via thinking_delta (Qwen, Claude extended thinking).
       const src = block.content as { thinking?: string };
+      const streamed = (thinkingDeltas.get(index) || []).join('');
       content.push({
         type: 'thinking',
-        thinking: src.thinking || '',
+        thinking: streamed || src.thinking || '',
       } as ClaudeContent);
     }
   }

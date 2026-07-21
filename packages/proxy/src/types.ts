@@ -207,7 +207,7 @@ export interface ServerToolUseBlockStart {
 export interface ContentBlockDeltaEvent {
   type: 'content_block_delta';
   index: number;
-  delta: TextDelta | InputJsonDelta;
+  delta: TextDelta | InputJsonDelta | ThinkingDelta | SignatureDelta;
 }
 
 export interface TextDelta {
@@ -218,6 +218,16 @@ export interface TextDelta {
 export interface InputJsonDelta {
   type: 'input_json_delta';
   partial_json: string;
+}
+
+export interface ThinkingDelta {
+  type: 'thinking_delta';
+  thinking: string;
+}
+
+export interface SignatureDelta {
+  type: 'signature_delta';
+  signature: string;
 }
 
 export interface ContentBlockStopEvent {

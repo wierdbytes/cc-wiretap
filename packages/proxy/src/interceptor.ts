@@ -9,12 +9,36 @@ import type {
 import { SSEStreamParser, reconstructResponseFromEvents } from './parser.js';
 import type { WiretapWebSocketServer } from './websocket.js';
 
+// Legacy: kept only for backwards-compatible exports. Interception is no longer
+// host-based — see isAnthropicMessagesRequest() below.
 export const CLAUDE_API_HOSTS = [
   'api.anthropic.com',
   'api.claude.ai',
 ];
 
 const CLAUDE_MESSAGES_PATH = '/v1/messages';
+
+/**
+ * Host-agnostic protocol detection: does this request body conform to the
+ * Anthropic Messages API request shape? This lets the wiretap capture traffic
+ * from any Anthropic-compatible endpoint (api.anthropic.com, Qwen Cloud
+ * /apps/anthropic, gateways, proxies, ...) rather than a fixed hostname list.
+ */
+function isAnthropicMessagesBody(buffer: Buffer | undefined): boolean {
+  if (!buffer || buffer.length === 0) return false;
+  try {
+    const body = JSON.parse(buffer.toString('utf-8')) as Record<string, unknown>;
+    if (body === null || typeof body !== 'object') return false;
+    // Required by the Anthropic Messages protocol.
+    if (typeof body.model !== 'string') return false;
+    if (!Array.isArray(body.messages)) return false;
+    // max_tokens is required by the protocol; allow absent but reject wrong type.
+    if (body.max_tokens !== undefined && typeof body.max_tokens !== 'number') return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export class ClaudeInterceptor {
   private wsServer: WiretapWebSocketServer;
@@ -28,14 +52,20 @@ export class ClaudeInterceptor {
   }
 
   isClaudeRequest(request: CompletedRequest): boolean {
-    const host = request.headers.host || new URL(request.url).host;
-    const path = new URL(request.url).pathname;
+    // Match by protocol conformance, not hostname:
+    //   - POST to a path ending in /v1/messages (Anthropic Messages endpoint)
+    //   - body shaped like an Anthropic Messages request
+    if (request.method !== 'POST') return false;
 
-    return (
-      CLAUDE_API_HOSTS.some((h) => host.includes(h)) &&
-      path.includes(CLAUDE_MESSAGES_PATH) &&
-      request.method === 'POST'
-    );
+    let path: string;
+    try {
+      path = new URL(request.url).pathname;
+    } catch {
+      return false;
+    }
+    if (!path.includes(CLAUDE_MESSAGES_PATH)) return false;
+
+    return isAnthropicMessagesBody(request.body.buffer);
   }
 
   async handleRequest(request: CompletedRequest): Promise<string | null> {
